@@ -1,7 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PreviewPhone } from '../components/PreviewPhone';
 import { DIRECTIONS, LANGUAGES } from '../shared/constants';
-import type { BootstrapPayload, DesignPackage, LanguageCode, RunRecord, ScriptPackage, TopicCandidate } from '../shared/types';
+import type {
+  BootstrapPayload,
+  CreateVideoPayload,
+  DesignPackage,
+  LanguageCode,
+  RunRecord,
+  ScriptPackage,
+  TopicCandidate
+} from '../shared/types';
 
 type ScriptDraft = {
   hook: string;
@@ -13,6 +21,16 @@ type ScriptDraft = {
   onScreenText: string;
 };
 
+const emptyDraft: ScriptDraft = {
+  hook: '',
+  body: '',
+  cta: '',
+  title: '',
+  description: '',
+  tags: '',
+  onScreenText: ''
+};
+
 export function App() {
   const [bootstrap, setBootstrap] = useState<BootstrapPayload | null>(null);
   const [directionId, setDirectionId] = useState(DIRECTIONS[0].id);
@@ -20,25 +38,25 @@ export function App() {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [customTopic, setCustomTopic] = useState('');
   const [languages, setLanguages] = useState<LanguageCode[]>(['en', 'ru']);
-  const [script, setScript] = useState<ScriptPackage | null>(null);
+  const [scripts, setScripts] = useState<ScriptPackage[]>([]);
+  const [activeLanguage, setActiveLanguage] = useState<LanguageCode>('en');
+  const [drafts, setDrafts] = useState<Record<string, ScriptDraft>>({});
   const [design, setDesign] = useState<DesignPackage | null>(null);
   const [runs, setRuns] = useState<RunRecord[]>([]);
+  const [selectedRun, setSelectedRun] = useState<RunRecord | null>(null);
   const [hasVoiceover, setHasVoiceover] = useState(true);
-  const [draft, setDraft] = useState<ScriptDraft>({
-    hook: '',
-    body: '',
-    cta: '',
-    title: '',
-    description: '',
-    tags: '',
-    onScreenText: ''
-  });
   const [status, setStatus] = useState('Ready');
 
   useEffect(() => {
     void bootstrapApp();
     void refreshRuns();
   }, []);
+
+  const activeScript = useMemo(
+    () => scripts.find((item) => item.language === activeLanguage) || scripts[0] || null,
+    [activeLanguage, scripts]
+  );
+  const activeDraft = activeScript ? drafts[activeScript.language] || toDraft(activeScript) : emptyDraft;
 
   async function bootstrapApp() {
     const res = await fetch('/api/bootstrap');
@@ -49,7 +67,9 @@ export function App() {
   async function refreshRuns() {
     const res = await fetch('/api/runs');
     const data = await res.json();
-    setRuns(data.runs || []);
+    const nextRuns = data.runs || [];
+    setRuns(nextRuns);
+    setSelectedRun((current) => current ? nextRuns.find((item: RunRecord) => item.id === current.id) || current : nextRuns[0] || null);
   }
 
   async function generateTopics() {
@@ -60,8 +80,9 @@ export function App() {
       body: JSON.stringify({ directionId, language: languages[0] })
     });
     const data = await res.json();
-    setTopicCandidates(data.topics || []);
-    setSelectedTopic(data.topics?.[0]?.topic || '');
+    const nextTopics = data.topics || [];
+    setTopicCandidates(nextTopics);
+    setSelectedTopic(nextTopics[0]?.topic || '');
     setStatus('Topics ready');
   }
 
@@ -76,109 +97,120 @@ export function App() {
         directionId,
         topic,
         languages,
-        durationSeconds: 20
-      })
-    });
-    const data = await res.json();
-    const nextScript = data.script as ScriptPackage;
-    setScript(nextScript);
-    setDesign(data.design as DesignPackage);
-    setDraft({
-      hook: nextScript.hook,
-      body: nextScript.body.join('\n'),
-      cta: nextScript.cta,
-      title: nextScript.title,
-      description: nextScript.description,
-      tags: nextScript.tags.join(', '),
-      onScreenText: nextScript.onScreenText.join('\n')
-    });
-    setStatus('Script ready for edits');
-  }
-
-  async function humanize() {
-    if (!script) return;
-    setStatus('Humanizing script...');
-    const res = await fetch('/api/script/humanize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(script)
-    });
-    const data = await res.json();
-    setScript(data.script);
-    setDesign(data.design);
-    setStatus('Humanized');
-  }
-
-  async function renderVideo() {
-    const topic = customTopic.trim() || selectedTopic || script?.topic || '';
-    if (!topic) return;
-    setStatus('Rendering full package...');
-    const res = await fetch('/api/agent/create-video', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        directionId,
-        topic,
-        languages,
         durationSeconds: 20,
         hasVoiceover
       })
     });
     const data = await res.json();
+    const nextScripts = (data.scripts || [data.script]) as ScriptPackage[];
+    setScripts(nextScripts);
+    setDesign(data.design as DesignPackage);
+    setActiveLanguage(nextScripts[0]?.language || 'en');
+    setDrafts(Object.fromEntries(nextScripts.map((item) => [item.language, toDraft(item)])));
+    setStatus('Scripts ready for edits');
+  }
+
+  async function humanize() {
+    if (!activeScript) return;
+    setStatus(`Humanizing ${activeScript.language.toUpperCase()} script...`);
+    const res = await fetch('/api/script/humanize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fromDraft(activeScript, activeDraft))
+    });
+    const data = await res.json();
+    const updated = data.script as ScriptPackage;
+    const nextScripts = scripts.map((item) => item.language === updated.language ? updated : item);
+    setScripts(nextScripts);
+    setDrafts((current) => ({ ...current, [updated.language]: toDraft(updated) }));
+    setDesign(data.design as DesignPackage);
+    setStatus('Humanized');
+  }
+
+  async function renderVideo() {
+    const topic = customTopic.trim() || selectedTopic || activeScript?.topic || '';
+    if (!topic) return;
+    setStatus('Rendering full package...');
+    const editedScripts = scripts.map((item) => fromDraft(item, drafts[item.language] || toDraft(item)));
+    const payload: CreateVideoPayload = {
+      directionId,
+      topic,
+      languages,
+      durationSeconds: 20,
+      hasVoiceover,
+      scripts: editedScripts
+    };
+    const res = await fetch('/api/agent/create-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
     setStatus(data.run ? 'Render completed' : data.error || 'Render failed');
     await refreshRuns();
+    if (data.run) setSelectedRun(data.run);
   }
 
   function applyDraft() {
-    if (!script) return;
-    const nextScript: ScriptPackage = {
-      ...script,
-      hook: draft.hook,
-      body: draft.body.split('\n').map((item) => item.trim()).filter(Boolean),
-      cta: draft.cta,
-      title: draft.title,
-      description: draft.description,
-      tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
-      onScreenText: draft.onScreenText.split('\n').map((item) => item.trim()).filter(Boolean),
-      voiceoverText: [draft.hook, ...draft.body.split('\n').map((item) => item.trim()).filter(Boolean), draft.cta].join(' ')
-    };
-    setScript(nextScript);
+    if (!activeScript) return;
+    const updated = fromDraft(activeScript, activeDraft);
+    const nextScripts = scripts.map((item) => item.language === updated.language ? updated : item);
+    setScripts(nextScripts);
     void fetch('/api/video/render', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        script: nextScript,
+        script: updated,
         directionId,
         hasVoiceover
       })
-    }).then((res) => res.json()).then((data) => setDesign(data.design));
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setDesign(data.design as DesignPackage);
+        setStatus(`Applied ${updated.language.toUpperCase()} edits`);
+      });
+  }
+
+  function updateDraftField(field: keyof ScriptDraft, value: string) {
+    if (!activeScript) return;
+    const next = { ...(drafts[activeScript.language] || toDraft(activeScript)), [field]: value };
+    setDrafts((current) => ({ ...current, [activeScript.language]: next }));
+  }
+
+  function toggleLanguage(language: LanguageCode) {
+    setLanguages((current) => current.includes(language)
+      ? current.length === 1 ? current : current.filter((item) => item !== language)
+      : [...current, language]
+    );
   }
 
   return (
     <main className="pageShell">
       <section className="heroPanel">
-        <div>
+        <div className="heroCopy">
           <p className="eyebrow">yt-vid</p>
-          <h1>Production pipeline from shorts-factory. UI and orchestration from video-agent.</h1>
-          <p className="subcopy">
-            Fresh topics, multilingual scripts, Cartesia voiceover, Remotion render, Hermes regression checks, and a direction-first editor.
-          </p>
+          <h1>Local Shorts factory with real render, voiceover, Hermes checks, and editable multilingual scripts.</h1>
+          <p className="subcopy">Generate fresh topics, edit every language variant, and open artifacts directly from the dashboard.</p>
+          <div className="heroChips">
+            <span>OpenRouter/Gemini</span>
+            <span>Cartesia</span>
+            <span>Remotion</span>
+            <span>Hermes</span>
+          </div>
         </div>
         <div className="heroStatus">
           <strong>{status}</strong>
           <span>{bootstrap?.project.url || 'http://localhost:3000'}</span>
+          <span>{hasVoiceover ? 'Voiceover ON' : 'Voiceover OFF'}</span>
         </div>
       </section>
 
       <section className="dashboardGrid">
         <div className="controlColumn">
           <div className="panel">
-            <div className="panelHeader">
-              <div>
-                <p className="eyebrow">1. Direction</p>
-                <h2>Choose the lane</h2>
-              </div>
-            </div>
+            <p className="eyebrow">1. Direction</p>
+            <h2>Choose the lane</h2>
             <div className="directionGrid">
               {DIRECTIONS.map((direction) => (
                 <button
@@ -231,11 +263,7 @@ export function App() {
                 <button
                   key={language.code}
                   className={languages.includes(language.code) ? 'pill active' : 'pill'}
-                  onClick={() => {
-                    setLanguages((current) => current.includes(language.code)
-                      ? current.filter((item) => item !== language.code)
-                      : [...current, language.code]);
-                  }}
+                  onClick={() => toggleLanguage(language.code)}
                   type="button"
                 >
                   {language.label}
@@ -243,26 +271,38 @@ export function App() {
               ))}
             </div>
             <div className="toolbar">
-              <button onClick={generateScript} type="button">Generate script</button>
-              <button onClick={humanize} type="button">Humanize</button>
+              <button onClick={generateScript} type="button">Generate scripts</button>
+              <button disabled={!activeScript} onClick={humanize} type="button">Humanize active</button>
             </div>
           </div>
 
           <div className="panel">
             <p className="eyebrow">3. Editor</p>
             <h2>Adjust before render</h2>
+            <div className="languageTabs">
+              {scripts.map((item) => (
+                <button
+                  key={item.language}
+                  className={activeLanguage === item.language ? 'langTab active' : 'langTab'}
+                  onClick={() => setActiveLanguage(item.language)}
+                  type="button"
+                >
+                  {item.language.toUpperCase()}
+                </button>
+              ))}
+            </div>
             <div className="editorGrid">
-              <textarea value={draft.hook} onChange={(event) => setDraft({ ...draft, hook: event.target.value })} placeholder="Hook" />
-              <textarea value={draft.body} onChange={(event) => setDraft({ ...draft, body: event.target.value })} placeholder="Body" />
-              <textarea value={draft.cta} onChange={(event) => setDraft({ ...draft, cta: event.target.value })} placeholder="CTA" />
-              <textarea value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Title" />
-              <textarea value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Description" />
-              <textarea value={draft.tags} onChange={(event) => setDraft({ ...draft, tags: event.target.value })} placeholder="Tags comma separated" />
-              <textarea value={draft.onScreenText} onChange={(event) => setDraft({ ...draft, onScreenText: event.target.value })} placeholder="On-screen text" />
+              <textarea value={activeDraft.hook} onChange={(event) => updateDraftField('hook', event.target.value)} placeholder="Hook" />
+              <textarea value={activeDraft.body} onChange={(event) => updateDraftField('body', event.target.value)} placeholder="Body" />
+              <textarea value={activeDraft.cta} onChange={(event) => updateDraftField('cta', event.target.value)} placeholder="CTA" />
+              <textarea value={activeDraft.title} onChange={(event) => updateDraftField('title', event.target.value)} placeholder="Title" />
+              <textarea value={activeDraft.description} onChange={(event) => updateDraftField('description', event.target.value)} placeholder="Description" />
+              <textarea value={activeDraft.tags} onChange={(event) => updateDraftField('tags', event.target.value)} placeholder="Tags comma separated" />
+              <textarea value={activeDraft.onScreenText} onChange={(event) => updateDraftField('onScreenText', event.target.value)} placeholder="On-screen text" />
             </div>
             <div className="toolbar">
-              <button onClick={applyDraft} type="button">Apply edits</button>
-              <button onClick={renderVideo} type="button">Create full video</button>
+              <button disabled={!activeScript} onClick={applyDraft} type="button">Apply active edits</button>
+              <button disabled={scripts.length === 0} onClick={renderVideo} type="button">Create full video</button>
             </div>
           </div>
         </div>
@@ -271,23 +311,87 @@ export function App() {
           <div className="panel stickyPanel">
             <p className="eyebrow">Preview</p>
             <h2>Final look</h2>
-            <PreviewPhone script={script} design={design} />
+            <PreviewPhone script={activeScript} design={design} />
           </div>
+
           <div className="panel">
             <p className="eyebrow">Runs</p>
             <h2>Recent outputs</h2>
             <div className="runList">
               {runs.map((run) => (
-                <div className="runItem" key={run.id}>
+                <button
+                  className={selectedRun?.id === run.id ? 'runItem active' : 'runItem'}
+                  key={run.id}
+                  onClick={() => setSelectedRun(run)}
+                  type="button"
+                >
                   <strong>{run.topic}</strong>
                   <span>{run.directionName} · {run.languages.join(', ')}</span>
                   <code>{run.outputDir}</code>
-                </div>
+                </button>
               ))}
             </div>
+
+            {selectedRun ? (
+              <div className="runDetails">
+                <h3>{selectedRun.youtubePackage.title}</h3>
+                <p>{selectedRun.youtubePackage.description}</p>
+                <div className="artifactGrid">
+                  {Object.entries(selectedRun.artifacts).map(([key, file]) => (
+                    <a
+                      className="artifactLink"
+                      href={`/output/runs/${selectedRun.id}/${file}`}
+                      key={key}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {key}
+                    </a>
+                  ))}
+                  {selectedRun.languages.map((language) => (
+                    <a
+                      className="artifactLink video"
+                      href={`/output/runs/${selectedRun.id}/short-${language}.mp4`}
+                      key={language}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      video {language}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
     </main>
   );
+}
+
+function toDraft(script: ScriptPackage): ScriptDraft {
+  return {
+    hook: script.hook,
+    body: script.body.join('\n'),
+    cta: script.cta,
+    title: script.title,
+    description: script.description,
+    tags: script.tags.join(', '),
+    onScreenText: script.onScreenText.join('\n')
+  };
+}
+
+function fromDraft(script: ScriptPackage, draft: ScriptDraft): ScriptPackage {
+  const body = draft.body.split('\n').map((item) => item.trim()).filter(Boolean);
+  return {
+    ...script,
+    hook: draft.hook,
+    body,
+    cta: draft.cta,
+    title: draft.title,
+    description: draft.description,
+    tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
+    onScreenText: draft.onScreenText.split('\n').map((item) => item.trim()).filter(Boolean),
+    voiceoverText: [draft.hook, ...body, draft.cta].join(' ')
+  };
 }

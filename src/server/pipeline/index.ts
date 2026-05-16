@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { DIRECTIONS } from '../../shared/constants';
-import type { LanguageCode, RunRecord } from '../../shared/types';
+import type { CreateVideoPayload, LanguageCode, RunRecord, ScriptPackage } from '../../shared/types';
 import { appendHermesDecision } from '../hermes/decisions';
 import { createYouTubePackage } from './assembler';
 import { createDesign } from './design';
@@ -19,21 +19,23 @@ export async function runFullPipeline({
   topic,
   languages,
   durationSeconds,
-  hasVoiceover
-}: {
-  directionId: string;
-  topic: string;
-  languages: LanguageCode[];
-  durationSeconds: number;
-  hasVoiceover: boolean;
-}) {
+  hasVoiceover,
+  scripts: scriptOverrides
+}: CreateVideoPayload) {
   const direction = DIRECTIONS.find((item) => item.id === directionId);
   if (!direction) throw new Error('Unknown direction');
 
   const runDir = await createRunFolder(directionId, topic);
-  const scripts = await Promise.all(
-    languages.map(async (language) => humanizeScript(await generateScript(direction, topic, language, durationSeconds)))
-  );
+  const scripts: ScriptPackage[] = scriptOverrides && scriptOverrides.length > 0
+    ? scriptOverrides.map((script) => humanizeScript({
+      ...script,
+      direction: direction.id,
+      topic,
+      durationSeconds
+    }))
+    : await Promise.all(
+      languages.map(async (language) => humanizeScript(await generateScript(direction, topic, language, durationSeconds)))
+    );
   const multilingual = await buildMultilingualScript(scripts);
   multilingual.hasVoiceover = hasVoiceover;
 

@@ -126,6 +126,15 @@ export type RunRecord = {
   youtubePackage: YouTubePackage;
 };
 
+export type CreateVideoPayload = {
+  directionId: string;
+  topic: string;
+  languages: LanguageCode[];
+  durationSeconds: number;
+  hasVoiceover: boolean;
+  scripts?: ScriptPackage[];
+};
+
 export type BootstrapPayload = {
   project: {
     name: string;

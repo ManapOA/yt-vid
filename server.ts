@@ -22,6 +22,7 @@ async function createApp() {
     appType: 'custom'
   });
 
+  app.use('/output', express.static(path.join(config.root, 'output')));
   app.use(vite.middlewares);
 
   app.get('/api/bootstrap', async (_req, res) => {
@@ -108,7 +109,8 @@ async function createApp() {
         topic: req.body.topic,
         languages: req.body.languages || ['en'],
         durationSeconds: Number(req.body.durationSeconds || config.defaultDurationSeconds),
-        hasVoiceover: req.body.hasVoiceover ?? config.voiceoverEnabled
+        hasVoiceover: req.body.hasVoiceover ?? config.voiceoverEnabled,
+        scripts: req.body.scripts
       });
       res.json({ run });
     } catch (error) {
