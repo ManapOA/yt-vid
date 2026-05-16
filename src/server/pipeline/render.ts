@@ -21,10 +21,20 @@ function getMimeType(filePath: string) {
   return 'audio/wav';
 }
 
+function normalizeAssetPath(filePath: string) {
+  if (filePath.startsWith('data:')) return filePath;
+  if (filePath.startsWith('file:///')) {
+    return decodeURIComponent(new URL(filePath).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
+  }
+  return filePath;
+}
+
 async function fileToDataUrl(filePath: string | null) {
   if (!filePath) return null;
-  const buffer = await fs.readFile(filePath);
-  return `data:${getMimeType(filePath)};base64,${buffer.toString('base64')}`;
+  if (filePath.startsWith('data:')) return filePath;
+  const normalizedPath = normalizeAssetPath(filePath);
+  const buffer = await fs.readFile(normalizedPath);
+  return `data:${getMimeType(normalizedPath)};base64,${buffer.toString('base64')}`;
 }
 
 export async function renderVideoRun({

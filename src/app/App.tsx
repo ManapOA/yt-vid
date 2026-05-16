@@ -37,13 +37,14 @@ export function App() {
   const [topicCandidates, setTopicCandidates] = useState<TopicCandidate[]>([]);
   const [selectedTopic, setSelectedTopic] = useState('');
   const [customTopic, setCustomTopic] = useState('');
-  const [languages, setLanguages] = useState<LanguageCode[]>(['en', 'ru']);
+  const [languages, setLanguages] = useState<LanguageCode[]>(['en']);
   const [scripts, setScripts] = useState<ScriptPackage[]>([]);
   const [activeLanguage, setActiveLanguage] = useState<LanguageCode>('en');
   const [drafts, setDrafts] = useState<Record<string, ScriptDraft>>({});
   const [design, setDesign] = useState<DesignPackage | null>(null);
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [selectedRun, setSelectedRun] = useState<RunRecord | null>(null);
+  const [selectedRunLanguage, setSelectedRunLanguage] = useState<LanguageCode>('en');
   const [hasVoiceover, setHasVoiceover] = useState(true);
   const [status, setStatus] = useState('Ready');
   const [errorMessage, setErrorMessage] = useState('');
@@ -79,7 +80,13 @@ export function App() {
     const data = await res.json();
     const nextRuns = data.runs || [];
     setRuns(nextRuns);
-    setSelectedRun((current) => current ? nextRuns.find((item: RunRecord) => item.id === current.id) || current : nextRuns[0] || null);
+    setSelectedRun((current) => {
+      const nextSelected = current ? nextRuns.find((item: RunRecord) => item.id === current.id) || current : nextRuns[0] || null;
+      if (nextSelected) {
+        setSelectedRunLanguage(nextSelected.languages.includes(activeLanguage) ? activeLanguage : nextSelected.languages[0]);
+      }
+      return nextSelected;
+    });
   }
 
   async function generateTopics(silent = false) {
@@ -137,7 +144,7 @@ export function App() {
       const nextScripts = (data.scripts || [data.script]) as ScriptPackage[];
       setScripts(nextScripts);
       setDesign(data.design as DesignPackage);
-      setActiveLanguage(nextScripts[0]?.language || 'en');
+      setActiveLanguage(nextScripts.find((item) => item.language === activeLanguage)?.language || nextScripts[0]?.language || 'en');
       setDrafts(Object.fromEntries(nextScripts.map((item) => [item.language, toDraft(item)])));
       setStatus('Scripts ready for edits');
     } catch (error) {
@@ -208,7 +215,10 @@ export function App() {
       }
       setStatus('Render completed');
       await refreshRuns();
-      if (data.run) setSelectedRun(data.run);
+      if (data.run) {
+        setSelectedRun(data.run);
+        setSelectedRunLanguage(data.run.languages.includes(activeLanguage) ? activeLanguage : data.run.languages[0]);
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Render failed');
       setStatus('Render failed');
@@ -253,6 +263,7 @@ export function App() {
       ? current.length === 1 ? current : current.filter((item) => item !== language)
       : [...current, language]
     );
+    setActiveLanguage(language);
   }
 
   return (
@@ -344,6 +355,7 @@ export function App() {
                 </button>
               ))}
             </div>
+            <p className="pillHint">Selected pills will be rendered. The active editor tab controls the preview and default result player.</p>
             <div className="toolbar">
               <button disabled={isGeneratingScripts || !selectedTopic && !customTopic.trim()} onClick={generateScript} type="button">
                 {isGeneratingScripts ? 'Generating...' : 'Generate scripts'}
@@ -402,7 +414,10 @@ export function App() {
                 <button
                   className={selectedRun?.id === run.id ? 'runItem active' : 'runItem'}
                   key={run.id}
-                  onClick={() => setSelectedRun(run)}
+                  onClick={() => {
+                    setSelectedRun(run);
+                    setSelectedRunLanguage(run.languages.includes(activeLanguage) ? activeLanguage : run.languages[0]);
+                  }}
                   type="button"
                 >
                   <strong>{run.topic}</strong>
@@ -416,12 +431,24 @@ export function App() {
               <div className="runDetails">
                 <h3>{selectedRun.youtubePackage.title}</h3>
                 <p>{selectedRun.youtubePackage.description}</p>
-                {selectedRun.languages[0] ? (
+                <div className="runLanguageTabs">
+                  {selectedRun.languages.map((language) => (
+                    <button
+                      className={selectedRunLanguage === language ? 'langTab active' : 'langTab'}
+                      key={language}
+                      onClick={() => setSelectedRunLanguage(language)}
+                      type="button"
+                    >
+                      {language.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+                {selectedRunLanguage ? (
                   <video
                     className="runVideo"
                     controls
                     preload="metadata"
-                    src={`/output/runs/${selectedRun.id}/short-${selectedRun.languages[0]}.mp4`}
+                    src={`/output/runs/${selectedRun.id}/short-${selectedRunLanguage}.mp4`}
                   />
                 ) : null}
                 <div className="artifactGrid">

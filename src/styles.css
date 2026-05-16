@@ -250,6 +250,13 @@ textarea {
   margin-top: 12px;
 }
 
+.pillHint {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .pill {
   background: rgba(255,255,255,0.05);
   color: white;
@@ -355,6 +362,12 @@ textarea {
   border-top: 1px solid rgba(255,255,255,0.08);
   display: grid;
   gap: 10px;
+}
+
+.runLanguageTabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .runVideo {
