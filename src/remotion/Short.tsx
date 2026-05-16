@@ -1,12 +1,17 @@
 import React from 'react';
-import { AbsoluteFill, Audio, Easing, Sequence, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Audio, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { DesignPackage, ScriptPackage } from '../shared/types';
 
 function fitTitleSize(text: string) {
-  if (text.length > 90) return 62;
-  if (text.length > 70) return 72;
-  if (text.length > 48) return 82;
-  return 94;
+  if (text.length > 110) return 58;
+  if (text.length > 84) return 68;
+  if (text.length > 56) return 78;
+  return 92;
+}
+
+function getSceneWindow(durationInFrames: number, count: number) {
+  const safeCount = Math.max(1, count);
+  return Math.max(70, Math.floor(durationInFrames / safeCount));
 }
 
 export function YtVidShort({
@@ -24,15 +29,15 @@ export function YtVidShort({
 }) {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
-  const sceneFrames = Math.max(55, Math.floor(durationInFrames / Math.max(3, design.scenes.length)));
   const titleSize = fitTitleSize(script.title);
-  const glow = interpolate(frame, [0, durationInFrames * 0.4, durationInFrames], [0.16, 0.28, 0.2], {
+  const sceneWindow = getSceneWindow(durationInFrames, Math.min(3, design.scenes.length));
+  const glow = interpolate(frame, [0, durationInFrames * 0.4, durationInFrames], [0.14, 0.26, 0.18], {
     easing: Easing.out(Easing.cubic)
   });
-  const titleSpring = spring({ fps, frame, config: { damping: 14, stiffness: 90 } });
-  const titleTranslate = interpolate(titleSpring, [0, 1], [40, 0]);
+  const titleSpring = spring({ fps, frame, config: { damping: 16, stiffness: 92 } });
+  const titleTranslate = interpolate(titleSpring, [0, 1], [44, 0]);
   const titleOpacity = interpolate(titleSpring, [0, 1], [0, 1]);
-  const progress = interpolate(frame, [0, durationInFrames - 1], [0.08, 1], { extrapolateRight: 'clamp' });
+  const progress = interpolate(frame, [0, durationInFrames - 1], [0.06, 1], { extrapolateRight: 'clamp' });
 
   return (
     <AbsoluteFill
@@ -51,19 +56,19 @@ export function YtVidShort({
         }}
       />
 
-      <AbsoluteFill style={{ padding: '68px 68px 290px 68px', justifyContent: 'space-between' }}>
+      <AbsoluteFill style={{ padding: '68px 64px 248px 64px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 24, letterSpacing: 3, opacity: 0.84 }}>
           <span>{script.durationSeconds}s</span>
           <span>{script.language.toUpperCase()}</span>
         </div>
 
-        <div style={{ display: 'grid', gap: 28, alignContent: 'center', minHeight: 1040 }}>
+        <div style={{ marginTop: 56 }}>
           <div
             style={{
               fontSize: titleSize,
               lineHeight: 0.94,
               fontWeight: 800,
-              maxWidth: 860,
+              maxWidth: 900,
               textWrap: 'balance',
               opacity: titleOpacity,
               transform: `translateY(${titleTranslate}px)`,
@@ -72,22 +77,30 @@ export function YtVidShort({
           >
             {script.title}
           </div>
-
-          <div style={{ display: 'grid', gap: 14 }}>
-            {design.scenes.slice(0, 3).map((scene, index) => (
-              <Sequence key={scene.id} from={index * sceneFrames}>
-                <SceneCard
-                  accent={scene.accent}
-                  fps={fps}
-                  frame={frame - index * sceneFrames}
-                  text={scene.text}
-                />
-              </Sequence>
-            ))}
-          </div>
         </div>
 
-        <div style={{ display: 'grid', gap: 18 }}>
+        <div
+          style={{
+            position: 'relative',
+            marginTop: 54,
+            height: 570,
+            overflow: 'hidden'
+          }}
+        >
+          {design.scenes.slice(0, 3).map((scene, index) => (
+            <SceneCard
+              accent={scene.accent}
+              fps={fps}
+              frame={frame}
+              key={scene.id}
+              sceneIndex={index}
+              text={scene.text}
+              windowSize={sceneWindow}
+            />
+          ))}
+        </div>
+
+        <div style={{ marginTop: 'auto', display: 'grid', gap: 18 }}>
           <div
             style={{
               height: 6,
@@ -142,34 +155,69 @@ function SceneCard({
   text,
   frame,
   fps,
-  accent
+  accent,
+  sceneIndex,
+  windowSize
 }: {
   text: string;
   frame: number;
   fps: number;
   accent: boolean;
+  sceneIndex: number;
+  windowSize: number;
 }) {
-  const enter = spring({ fps, frame, config: { damping: 16, stiffness: 110 } });
-  const opacity = interpolate(enter, [0, 1], [0, accent ? 1 : 0.88]);
-  const translateY = interpolate(enter, [0, 1], [34, 0]);
-  const scale = interpolate(enter, [0, 1], [0.96, 1]);
+  const localFrame = frame - sceneIndex * windowSize;
+  const enter = spring({ fps, frame: localFrame, config: { damping: 18, stiffness: 120 } });
+  const exitStart = Math.max(18, windowSize - 22);
+  const exitProgress = interpolate(localFrame, [exitStart, windowSize], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp'
+  });
+  const enterOpacity = interpolate(enter, [0, 1], [0, accent ? 1 : 0.9]);
+  const opacity = interpolate(exitProgress, [0, 1], [enterOpacity, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp'
+  });
+  const translateYIn = interpolate(enter, [0, 1], [28, 0]);
+  const translateYOut = interpolate(exitProgress, [0, 1], [0, -16]);
+  const scaleIn = interpolate(enter, [0, 1], [0.965, 1]);
+  const scaleOut = interpolate(exitProgress, [0, 1], [1, 0.985]);
+
+  if (localFrame < -18 || localFrame > windowSize) {
+    return null;
+  }
 
   return (
     <div
       style={{
-        padding: '20px 22px',
-        borderRadius: 28,
-        maxWidth: 840,
-        fontSize: 34,
-        lineHeight: 1.12,
-        background: accent ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.13)',
-        color: accent ? '#231916' : 'white',
-        opacity,
-        transform: `translateY(${translateY}px) scale(${scale})`,
-        boxShadow: accent ? '0 18px 42px rgba(0,0,0,0.18)' : 'none'
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        pointerEvents: 'none',
+        opacity
       }}
     >
-      {text}
+      <div
+        style={{
+          padding: '26px 28px',
+          borderRadius: 30,
+          width: '100%',
+          maxWidth: 880,
+          maxHeight: 500,
+          overflow: 'hidden',
+          fontSize: 34,
+          lineHeight: 1.12,
+          fontWeight: 600,
+          background: accent ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.12)',
+          color: accent ? '#231916' : 'white',
+          transform: `translateY(${translateYIn + translateYOut}px) scale(${scaleIn * scaleOut})`,
+          boxShadow: accent ? '0 18px 42px rgba(0,0,0,0.18)' : '0 12px 34px rgba(0,0,0,0.14)'
+        }}
+      >
+        {text}
+      </div>
     </div>
   );
 }
