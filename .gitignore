@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+output/runs/
+*.log
+vendor/
+coverage/
+public/remotion-bundle/

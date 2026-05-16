@@ -1,0 +1,37 @@
+{
+  "name": "yt-vid",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "vite build",
+    "start": "node --import tsx server.ts",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.366",
+    "@remotion/renderer": "^4.0.366",
+    "@remotion/media-utils": "^4.0.366",
+    "@remotion/google-fonts": "^4.0.366",
+    "@vitejs/plugin-react": "^5.0.4",
+    "dotenv": "^17.2.1",
+    "express": "^4.21.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "remotion": "^4.0.366",
+    "vite": "^7.0.0",
+    "zod": "^4.0.14"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.14",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

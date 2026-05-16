@@ -1,0 +1,9 @@
+[
+  {
+    "id": "cta-no-onscreen-when-voiceover",
+    "severity": "high",
+    "rule": "If voiceover is enabled, CTA must not be rendered as a separate on-screen CTA block.",
+    "reason": "CTA is already spoken in voiceover.",
+    "check": "hasVoiceover=true must suppress visual CTA overlay."
+  }
+]
