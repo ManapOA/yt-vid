@@ -5,6 +5,7 @@ import { appendHermesDecision } from '../hermes/decisions';
 import { createYouTubePackage } from './assembler';
 import { createDesign } from './design';
 import { humanizeScript } from './humanize';
+import { ensureBackgroundMusic } from './music';
 import { renderVideoRun } from './render';
 import { generateScript } from './script-engine';
 import { generateTopicCandidates } from './topic-engine';
@@ -30,8 +31,10 @@ export async function runFullPipeline({
   if (!direction) throw new Error('Unknown direction');
 
   const runDir = await createRunFolder(directionId, topic);
-  const baseScript = humanizeScript(await generateScript(direction, topic, languages[0], durationSeconds));
-  const multilingual = await buildMultilingualScript(baseScript, languages);
+  const scripts = await Promise.all(
+    languages.map(async (language) => humanizeScript(await generateScript(direction, topic, language, durationSeconds)))
+  );
+  const multilingual = await buildMultilingualScript(scripts);
   multilingual.hasVoiceover = hasVoiceover;
 
   await saveStageArtifact(runDir, 'script.json', multilingual);
@@ -41,8 +44,10 @@ export async function runFullPipeline({
 
   const { bundle, design } = createDesign(direction, multilingual);
   await saveStageArtifact(runDir, 'design.json', design);
+  const musicFile = await ensureBackgroundMusic(direction.category, runDir);
+  await saveStageArtifact(runDir, 'music.json', { file: musicFile });
 
-  const renders = await renderVideoRun({ runDir, bundleData: bundle, design });
+  const renders = await renderVideoRun({ runDir, bundleData: bundle, design, musicFile });
   await saveStageArtifact(runDir, 'render.json', renders);
 
   const youtubePackage = createYouTubePackage(bundle);
@@ -78,6 +83,31 @@ export async function runFullPipeline({
   });
 
   return run;
+}
+
+export async function buildScriptDraft({
+  directionId,
+  topic,
+  languages,
+  durationSeconds,
+  hasVoiceover
+}: {
+  directionId: string;
+  topic: string;
+  languages: LanguageCode[];
+  durationSeconds: number;
+  hasVoiceover: boolean;
+}) {
+  const direction = DIRECTIONS.find((item) => item.id === directionId);
+  if (!direction) throw new Error('Unknown direction');
+
+  const scripts = await Promise.all(
+    languages.map(async (language) => humanizeScript(await generateScript(direction, topic, language, durationSeconds)))
+  );
+  const multilingual = await buildMultilingualScript(scripts);
+  multilingual.hasVoiceover = hasVoiceover;
+  const { bundle, design } = createDesign(direction, multilingual);
+  return { bundle, design };
 }
 
 export async function generateTopicsForDirection(directionId: string, language: LanguageCode) {

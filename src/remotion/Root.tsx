@@ -44,7 +44,9 @@ export const RemotionRoot: React.FC = () => {
             { id: 'scene-3', text: 'Preview body line two.', accent: true }
           ]
         },
-        audioFile: null
+        audioFile: null,
+        musicFile: null,
+        musicVolume: 0.1
       }}
     />
   );

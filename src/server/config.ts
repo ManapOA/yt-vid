@@ -47,7 +47,14 @@ export const config = {
   defaultDurationSeconds: Number(process.env.DEFAULT_DURATION_SECONDS || 20),
   voiceoverEnabled: process.env.VOICEOVER_ENABLED !== '0',
   musicVolume: Number(process.env.MUSIC_VOLUME || 0.1),
+  hermesEndpoint: process.env.HERMES_ENDPOINT || '',
+  storycraftrEndpoint: process.env.STORYCRAFTR_ENDPOINT || '',
+  openDesignEndpoint: process.env.OPEN_DESIGN_ENDPOINT || '',
+  remotionEndpoint: process.env.REMOTION_ENDPOINT || '',
+  gptSovitsEndpoint: process.env.GPT_SOVITS_ENDPOINT || '',
   dataDir: path.join(root, 'data'),
   outputRoot: path.join(root, 'output', 'runs'),
-  publicBundleDir: path.join(root, 'public', 'remotion-bundle')
+  publicBundleDir: path.join(root, 'public', 'remotion-bundle'),
+  publicRenderAssetsDir: path.join(root, 'public', 'render-assets'),
+  musicDir: path.join(root, 'music')
 };

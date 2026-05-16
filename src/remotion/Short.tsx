@@ -5,11 +5,15 @@ import type { DesignPackage, ScriptPackage } from '../shared/types';
 export function YtVidShort({
   script,
   design,
-  audioFile
+  audioFile,
+  musicFile,
+  musicVolume = 0.1
 }: {
   script: ScriptPackage;
   design: DesignPackage;
   audioFile: string | null;
+  musicFile?: string | null;
+  musicVolume?: number;
 }) {
   const frame = useCurrentFrame();
   const glow = interpolate(frame, [0, 30, 90], [0.7, 1, 0.75], { extrapolateRight: 'clamp' });
@@ -23,6 +27,7 @@ export function YtVidShort({
       }}
     >
       {audioFile ? <Audio src={audioFile} volume={1} /> : null}
+      {musicFile ? <Audio src={musicFile} volume={musicVolume} /> : null}
       <AbsoluteFill style={{ padding: 72, justifyContent: 'space-between' }}>
         <div style={{ fontSize: 24, letterSpacing: 3, opacity: 0.8 }}>{script.language.toUpperCase()}</div>
         <div style={{ display: 'grid', gap: 26, alignContent: 'center', minHeight: 1180 }}>

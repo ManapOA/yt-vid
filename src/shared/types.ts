@@ -77,6 +77,13 @@ export type DesignPackage = {
   }>;
 };
 
+export type ScriptDraftBundle = {
+  directionId: string;
+  topic: string;
+  hasVoiceover: boolean;
+  languages: ScriptPackage[];
+};
+
 export type VoiceArtifact = {
   language: LanguageCode;
   fileName: string;

@@ -6,3 +6,4 @@ output/runs/
 vendor/
 coverage/
 public/remotion-bundle/
+public/render-assets/

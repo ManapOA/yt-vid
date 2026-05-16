@@ -9,9 +9,8 @@ import { appendHermesFix } from './src/server/hermes/decisions';
 import { runRegressionChecks } from './src/server/hermes/regression-checks';
 import { getHermesRules } from './src/server/hermes/rules';
 import { createDesign } from './src/server/pipeline/design';
-import { runFullPipeline, generateTopicsForDirection } from './src/server/pipeline';
+import { runFullPipeline, generateTopicsForDirection, buildScriptDraft } from './src/server/pipeline';
 import { humanizeScript } from './src/server/pipeline/humanize';
-import { generateScript } from './src/server/pipeline/script-engine';
 import { buildMultilingualScript } from './src/server/pipeline/translation';
 import { listRuns } from './src/server/storage/runs';
 
@@ -54,12 +53,16 @@ async function createApp() {
     try {
       const direction = DIRECTIONS.find((item) => item.id === req.body.directionId);
       if (!direction) throw new Error('Unknown direction');
-      const baseScript = await generateScript(direction, req.body.topic, req.body.languages?.[0] || 'en', Number(req.body.durationSeconds || config.defaultDurationSeconds));
-      const multilingual = await buildMultilingualScript(baseScript, req.body.languages || ['en']);
-      multilingual.hasVoiceover = req.body.hasVoiceover ?? true;
-      const { bundle, design } = createDesign(direction, multilingual);
+      const { bundle, design } = await buildScriptDraft({
+        directionId: direction.id,
+        topic: req.body.topic,
+        languages: req.body.languages || ['en'],
+        durationSeconds: Number(req.body.durationSeconds || config.defaultDurationSeconds),
+        hasVoiceover: req.body.hasVoiceover ?? true
+      });
       res.json({
         script: bundle.languages[0],
+        scripts: bundle.languages,
         design
       });
     } catch (error) {
@@ -72,7 +75,7 @@ async function createApp() {
       const nextScript = humanizeScript(req.body);
       const direction = DIRECTIONS.find((item) => item.id === nextScript.direction);
       if (!direction) throw new Error('Unknown direction');
-      const multilingual = await buildMultilingualScript(nextScript, [nextScript.language]);
+      const multilingual = await buildMultilingualScript([nextScript]);
       multilingual.hasVoiceover = true;
       const { bundle, design } = createDesign(direction, multilingual);
       res.json({ script: bundle.languages[0], design });
@@ -89,7 +92,7 @@ async function createApp() {
     try {
       const direction = DIRECTIONS.find((item) => item.id === req.body.directionId || item.id === req.body.script?.direction);
       if (!direction) throw new Error('Unknown direction');
-      const multilingual = await buildMultilingualScript(req.body.script, [req.body.script.language]);
+      const multilingual = await buildMultilingualScript([req.body.script]);
       multilingual.hasVoiceover = req.body.hasVoiceover ?? true;
       const { design } = createDesign(direction, multilingual);
       res.json({ design });
