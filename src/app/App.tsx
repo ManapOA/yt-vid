@@ -46,11 +46,21 @@ export function App() {
   const [selectedRun, setSelectedRun] = useState<RunRecord | null>(null);
   const [hasVoiceover, setHasVoiceover] = useState(true);
   const [status, setStatus] = useState('Ready');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isGeneratingTopics, setIsGeneratingTopics] = useState(false);
+  const [isGeneratingScripts, setIsGeneratingScripts] = useState(false);
+  const [isHumanizing, setIsHumanizing] = useState(false);
+  const [isRendering, setIsRendering] = useState(false);
 
   useEffect(() => {
     void bootstrapApp();
     void refreshRuns();
   }, []);
+
+  useEffect(() => {
+    if (languages.length === 0) return;
+    void generateTopics(true);
+  }, [directionId, languages[0]]);
 
   const activeScript = useMemo(
     () => scripts.find((item) => item.language === activeLanguage) || scripts[0] || null,
@@ -72,64 +82,108 @@ export function App() {
     setSelectedRun((current) => current ? nextRuns.find((item: RunRecord) => item.id === current.id) || current : nextRuns[0] || null);
   }
 
-  async function generateTopics() {
+  async function generateTopics(silent = false) {
+    setIsGeneratingTopics(true);
+    setErrorMessage('');
     setStatus('Generating fresh topics...');
-    const res = await fetch('/api/topics/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ directionId, language: languages[0] })
-    });
-    const data = await res.json();
-    const nextTopics = data.topics || [];
-    setTopicCandidates(nextTopics);
-    setSelectedTopic(nextTopics[0]?.topic || '');
-    setStatus('Topics ready');
+    try {
+      const res = await fetch('/api/topics/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ directionId, language: languages[0] })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || 'Failed to generate topics');
+        setStatus('Topic generation failed');
+        return;
+      }
+      const nextTopics = data.topics || [];
+      setTopicCandidates(nextTopics);
+      setSelectedTopic(nextTopics[0]?.topic || '');
+      setStatus(silent ? 'Direction updated' : 'Topics ready');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to generate topics');
+      setStatus('Topic generation failed');
+    } finally {
+      setIsGeneratingTopics(false);
+    }
   }
 
   async function generateScript() {
     const topic = customTopic.trim() || selectedTopic;
     if (!topic) return;
+    setIsGeneratingScripts(true);
+    setErrorMessage('');
     setStatus('Generating script...');
-    const res = await fetch('/api/script/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        directionId,
-        topic,
-        languages,
-        durationSeconds: 20,
-        hasVoiceover
-      })
-    });
-    const data = await res.json();
-    const nextScripts = (data.scripts || [data.script]) as ScriptPackage[];
-    setScripts(nextScripts);
-    setDesign(data.design as DesignPackage);
-    setActiveLanguage(nextScripts[0]?.language || 'en');
-    setDrafts(Object.fromEntries(nextScripts.map((item) => [item.language, toDraft(item)])));
-    setStatus('Scripts ready for edits');
+    try {
+      const res = await fetch('/api/script/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          directionId,
+          topic,
+          languages,
+          durationSeconds: 20,
+          hasVoiceover
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || 'Failed to generate scripts');
+        setStatus('Script generation failed');
+        return;
+      }
+      const nextScripts = (data.scripts || [data.script]) as ScriptPackage[];
+      setScripts(nextScripts);
+      setDesign(data.design as DesignPackage);
+      setActiveLanguage(nextScripts[0]?.language || 'en');
+      setDrafts(Object.fromEntries(nextScripts.map((item) => [item.language, toDraft(item)])));
+      setStatus('Scripts ready for edits');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to generate scripts');
+      setStatus('Script generation failed');
+    } finally {
+      setIsGeneratingScripts(false);
+    }
   }
 
   async function humanize() {
     if (!activeScript) return;
+    setIsHumanizing(true);
+    setErrorMessage('');
     setStatus(`Humanizing ${activeScript.language.toUpperCase()} script...`);
-    const res = await fetch('/api/script/humanize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(fromDraft(activeScript, activeDraft))
-    });
-    const data = await res.json();
-    const updated = data.script as ScriptPackage;
-    const nextScripts = scripts.map((item) => item.language === updated.language ? updated : item);
-    setScripts(nextScripts);
-    setDrafts((current) => ({ ...current, [updated.language]: toDraft(updated) }));
-    setDesign(data.design as DesignPackage);
-    setStatus('Humanized');
+    try {
+      const res = await fetch('/api/script/humanize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fromDraft(activeScript, activeDraft))
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || 'Failed to humanize script');
+        setStatus('Humanize failed');
+        return;
+      }
+      const updated = data.script as ScriptPackage;
+      const nextScripts = scripts.map((item) => item.language === updated.language ? updated : item);
+      setScripts(nextScripts);
+      setDrafts((current) => ({ ...current, [updated.language]: toDraft(updated) }));
+      setDesign(data.design as DesignPackage);
+      setStatus('Humanized');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to humanize script');
+      setStatus('Humanize failed');
+    } finally {
+      setIsHumanizing(false);
+    }
   }
 
   async function renderVideo() {
     const topic = customTopic.trim() || selectedTopic || activeScript?.topic || '';
     if (!topic) return;
+    setIsRendering(true);
+    setErrorMessage('');
     setStatus('Rendering full package...');
     const editedScripts = scripts.map((item) => fromDraft(item, drafts[item.language] || toDraft(item)));
     const payload: CreateVideoPayload = {
@@ -140,15 +194,27 @@ export function App() {
       hasVoiceover,
       scripts: editedScripts
     };
-    const res = await fetch('/api/agent/create-video', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    setStatus(data.run ? 'Render completed' : data.error || 'Render failed');
-    await refreshRuns();
-    if (data.run) setSelectedRun(data.run);
+    try {
+      const res = await fetch('/api/agent/create-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || 'Render failed');
+        setStatus('Render failed');
+        return;
+      }
+      setStatus('Render completed');
+      await refreshRuns();
+      if (data.run) setSelectedRun(data.run);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Render failed');
+      setStatus('Render failed');
+    } finally {
+      setIsRendering(false);
+    }
   }
 
   function applyDraft() {
@@ -169,6 +235,10 @@ export function App() {
       .then((data) => {
         setDesign(data.design as DesignPackage);
         setStatus(`Applied ${updated.language.toUpperCase()} edits`);
+      })
+      .catch((error) => {
+        setErrorMessage(error instanceof Error ? error.message : 'Failed to apply edits');
+        setStatus('Preview update failed');
       });
   }
 
@@ -206,6 +276,8 @@ export function App() {
         </div>
       </section>
 
+      {errorMessage ? <section className="errorBanner">{errorMessage}</section> : null}
+
       <section className="dashboardGrid">
         <div className="controlColumn">
           <div className="panel">
@@ -225,7 +297,9 @@ export function App() {
               ))}
             </div>
             <div className="toolbar">
-              <button onClick={generateTopics} type="button">Generate topics</button>
+              <button disabled={isGeneratingTopics} onClick={() => void generateTopics()} type="button">
+                {isGeneratingTopics ? 'Generating...' : 'Generate topics'}
+              </button>
               <label className="toggleRow">
                 <input checked={hasVoiceover} onChange={(event) => setHasVoiceover(event.target.checked)} type="checkbox" />
                 Voiceover
@@ -271,8 +345,12 @@ export function App() {
               ))}
             </div>
             <div className="toolbar">
-              <button onClick={generateScript} type="button">Generate scripts</button>
-              <button disabled={!activeScript} onClick={humanize} type="button">Humanize active</button>
+              <button disabled={isGeneratingScripts || !selectedTopic && !customTopic.trim()} onClick={generateScript} type="button">
+                {isGeneratingScripts ? 'Generating...' : 'Generate scripts'}
+              </button>
+              <button disabled={!activeScript || isHumanizing} onClick={humanize} type="button">
+                {isHumanizing ? 'Humanizing...' : 'Humanize active'}
+              </button>
             </div>
           </div>
 
@@ -302,7 +380,9 @@ export function App() {
             </div>
             <div className="toolbar">
               <button disabled={!activeScript} onClick={applyDraft} type="button">Apply active edits</button>
-              <button disabled={scripts.length === 0} onClick={renderVideo} type="button">Create full video</button>
+              <button disabled={scripts.length === 0 || isRendering} onClick={renderVideo} type="button">
+                {isRendering ? 'Rendering video...' : 'Create full video'}
+              </button>
             </div>
           </div>
         </div>
@@ -336,6 +416,14 @@ export function App() {
               <div className="runDetails">
                 <h3>{selectedRun.youtubePackage.title}</h3>
                 <p>{selectedRun.youtubePackage.description}</p>
+                {selectedRun.languages[0] ? (
+                  <video
+                    className="runVideo"
+                    controls
+                    preload="metadata"
+                    src={`/output/runs/${selectedRun.id}/short-${selectedRun.languages[0]}.mp4`}
+                  />
+                ) : null}
                 <div className="artifactGrid">
                   {Object.entries(selectedRun.artifacts).map(([key, file]) => (
                     <a

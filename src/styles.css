@@ -123,6 +123,15 @@ h1 {
   margin-top: 16px;
 }
 
+.errorBanner {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: rgba(203, 75, 50, 0.18);
+  border: 1px solid rgba(203, 75, 50, 0.4);
+  color: #ffd6cf;
+}
+
 .controlColumn,
 .previewColumn {
   display: grid;
@@ -208,6 +217,11 @@ h1 {
 .toolbar button {
   padding: 12px 18px;
   font-weight: 700;
+}
+
+.toolbar button:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .toggleRow {
@@ -341,6 +355,12 @@ textarea {
   border-top: 1px solid rgba(255,255,255,0.08);
   display: grid;
   gap: 10px;
+}
+
+.runVideo {
+  width: 100%;
+  border-radius: 16px;
+  background: #000;
 }
 
 .runDetails p {
