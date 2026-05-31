@@ -20,7 +20,12 @@ async function createApp() {
   const app = express();
   app.use(express.json({ limit: '2mb' }));
   const vite = await createViteServer({
-    server: { middlewareMode: true },
+    server: {
+      middlewareMode: true,
+      watch: {
+        ignored: ['**/output/**', '**/data/**', '**/.tools/**', '**/dist/**']
+      }
+    },
     appType: 'custom'
   });
 

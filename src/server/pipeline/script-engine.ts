@@ -268,6 +268,50 @@ function getTopicSpecificLines(topic: string, language: LanguageCode) {
   return null;
 }
 
+function buildTopicFallbackLines(topic: string, localizedTopic: string, language: LanguageCode, direction: Direction) {
+  const subject = localizedTopic || topic;
+  const shortSubject = subject
+    .replace(/^why\s+/i, '')
+    .replace(/^the\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const variants: Record<LanguageCode, string[][]> = {
+    en: [
+      [`It starts with ${shortSubject}, but the real clue is the reaction after it.`, 'The moment feels small, then your mind keeps replaying it because something did not match.', 'That mismatch is usually where the truth leaks out.'],
+      [`Most people notice ${shortSubject} too late.`, 'At first it looks normal, almost random, like nothing worth naming.', 'Then the pattern repeats and suddenly the whole mood makes sense.'],
+      [`There is a quiet reason ${shortSubject} feels so personal.`, 'It touches the part of you that was already trying to read the room.', 'That is why a small shift can feel bigger than the actual words.']
+    ],
+    ru: [
+      [`Сначала это выглядит как ${shortSubject}, но важнее реакция после.`, 'Момент кажется маленьким, а потом мозг снова и снова возвращается к нему.', 'Обычно именно в этом несовпадении и видно настоящее отношение.'],
+      [`Многие слишком поздно замечают ${shortSubject}.`, 'Сначала это выглядит обычно, почти случайно, будто не о чем думать.', 'Но когда pattern повторяется, настроение сразу становится понятнее.'],
+      [`Есть тихая причина, почему ${shortSubject} цепляет так лично.`, 'Это попадает туда, где ты уже пытался считать настроение человека.', 'Поэтому маленький сдвиг иногда ощущается громче, чем слова.']
+    ],
+    kk: [
+      [`Басында бұл ${shortSubject} сияқты көрінеді, бірақ ең маңыздысы кейінгі реакция.`, 'Кішкентай сәт сияқты, бірақ ой қайта-қайта соған оралады.', 'Көбіне шын белгі дәл сол сәйкессіз жерде көрінеді.'],
+      [`Көп адам ${shortSubject} дегенді кеш байқайды.`, 'Алғашында бұл жай нәрсе сияқты көрінеді.', 'Бірақ қайталанса, бүкіл көңіл-күй түсінікті бола бастайды.'],
+      [`${shortSubject} неге қатты әсер ететінінің тыныш себебі бар.`, 'Ол сен адамның көңілін оқуға тырысқан жерге тиеді.', 'Сондықтан кішкентай өзгеріс сөзден де қатты сезіледі.']
+    ],
+    de: [
+      [`Es beginnt mit ${shortSubject}, aber der eigentliche Hinweis ist die Reaktion danach.`, 'Der Moment wirkt klein, dann spielt der Kopf ihn immer wieder ab.', 'Genau in diesem Widerspruch zeigt sich oft die Wahrheit.'],
+      [`Viele bemerken ${shortSubject} zu spat.`, 'Am Anfang wirkt es normal, fast zufallig.', 'Wenn sich das Muster wiederholt, ergibt die Stimmung plotzlich Sinn.'],
+      [`Es gibt einen stillen Grund, warum ${shortSubject} so personlich wirkt.`, 'Es trifft den Teil in dir, der den Raum schon lesen wollte.', 'Darum kann eine kleine Verschiebung lauter wirken als Worte.']
+    ],
+    es: [
+      [`Empieza con ${shortSubject}, pero la pista real esta en la reaccion despues.`, 'El momento parece pequeno, luego la mente lo repite una y otra vez.', 'En esa contradiccion suele escaparse la verdad.'],
+      [`Mucha gente nota ${shortSubject} demasiado tarde.`, 'Al principio parece normal, casi casual.', 'Cuando el patron se repite, todo el ambiente empieza a tener sentido.'],
+      [`Hay una razon silenciosa por la que ${shortSubject} se siente tan personal.`, 'Toca la parte de ti que ya intentaba leer el ambiente.', 'Por eso un cambio pequeno puede sentirse mas fuerte que las palabras.']
+    ],
+    it: [
+      [`Inizia con ${shortSubject}, ma il vero segnale e la reazione dopo.`, 'Il momento sembra piccolo, poi la mente continua a ripeterlo.', 'In quella contraddizione spesso esce la verita.'],
+      [`Molti notano ${shortSubject} troppo tardi.`, 'All inizio sembra normale, quasi casuale.', 'Quando il pattern si ripete, l atmosfera diventa chiara.'],
+      [`C e un motivo silenzioso per cui ${shortSubject} sembra cosi personale.`, 'Tocca la parte di te che stava gia leggendo la stanza.', 'Per questo un piccolo cambio puo pesare piu delle parole.']
+    ]
+  };
+  const options = variants[language] || variants.en;
+  const offset = Math.abs([...`${topic}-${direction.id}`].reduce((sum, char) => sum + char.charCodeAt(0), 0));
+  return options[offset % options.length];
+}
+
 function normalizeGeneratedScript(script: ScriptPackage, direction: Direction, topic: string, localizedTopic: string, language: LanguageCode) {
   const localizedTitle = localizedTopic[0]?.toUpperCase() + localizedTopic.slice(1);
   const repairedHook = repairMojibake(script.hook);
@@ -304,7 +348,9 @@ function normalizeGeneratedScript(script: ScriptPackage, direction: Direction, t
 
 function fallbackScript(direction: Direction, topic: string, localizedTopic: string, language: LanguageCode, durationSeconds: number): ScriptPackage {
   const fallback = localizedFallbacks[language];
-  const directionalLines = getTopicSpecificLines(topic, language) || getDirectionalLines(direction, language);
+  const directionalLines = getTopicSpecificLines(topic, language)
+    || buildTopicFallbackLines(topic, localizedTopic, language, direction)
+    || getDirectionalLines(direction, language);
   const cta = CTA_FALLBACK[language];
   const hookBase = directionalLines[0] || fallback.hook;
   const bodyBase = directionalLines.slice(1, 3);
