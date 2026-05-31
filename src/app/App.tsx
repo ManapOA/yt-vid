@@ -568,7 +568,12 @@ export function App() {
         <div className="previewColumn">
           <div className="panel stickyPanel">
             <p className="eyebrow">Preview</p>
-            <h2>Final look</h2>
+            <div className="sectionHeaderRow">
+              <h2>Final look</h2>
+              <button className="compactButton previewRenderButton" disabled={scripts.length === 0 || isRendering} onClick={renderVideo} type="button">
+                {isRendering ? 'Rendering...' : 'Create MP4'}
+              </button>
+            </div>
             <PreviewPhone script={activeScript} design={design} />
           </div>
 
