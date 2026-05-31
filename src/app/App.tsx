@@ -4,7 +4,6 @@ import { AUTO_DIRECTIONS, DIRECTIONS, LANGUAGES } from '../shared/constants';
 import type {
   AutoDirectionId,
   AutoVideoResult,
-  BootstrapPayload,
   CreateVideoPayload,
   DesignPackage,
   LanguageCode,
@@ -43,11 +42,10 @@ function readStoredTextSettings(): TextGenerationSettings {
     const stored = JSON.parse(window.localStorage.getItem(textSettingsStorageKey) || '{}') as Partial<TextGenerationSettings>;
     return {
       provider: stored.provider === 'gemini' ? 'gemini' : 'openrouter',
-      apiKey: stored.apiKey || '',
-      model: stored.model || ''
+      apiKey: stored.apiKey || ''
     };
   } catch {
-    return { provider: 'openrouter', apiKey: '', model: '' };
+    return { provider: 'openrouter', apiKey: '' };
   }
 }
 
@@ -56,7 +54,6 @@ function resolveDirectionIdFromAuto(direction: AutoDirectionId) {
 }
 
 export function App() {
-  const [bootstrap, setBootstrap] = useState<BootstrapPayload | null>(null);
   const [directionId, setDirectionId] = useState(DIRECTIONS[0].id);
   const [topicCandidates, setTopicCandidates] = useState<TopicCandidate[]>([]);
   const [selectedTopic, setSelectedTopic] = useState('');
@@ -87,7 +84,6 @@ export function App() {
   const [textSettings, setTextSettings] = useState<TextGenerationSettings>(() => readStoredTextSettings());
 
   useEffect(() => {
-    void bootstrapApp();
     void refreshRuns();
   }, []);
 
@@ -117,15 +113,11 @@ export function App() {
     [activeLanguage, scripts]
   );
   const activeDraft = activeScript ? drafts[activeScript.language] || toDraft(activeScript) : emptyDraft;
-  const textModelPlaceholder = textSettings.provider === 'gemini'
-    ? bootstrap?.textSettings.geminiModel || 'gemini-2.0-flash'
-    : bootstrap?.textSettings.openrouterModel || 'openai/gpt-4o-mini';
 
   function requestTextSettings(): TextGenerationSettings {
     return {
       provider: textSettings.provider,
-      apiKey: textSettings.apiKey?.trim() || undefined,
-      model: textSettings.model?.trim() || undefined
+      apiKey: textSettings.apiKey?.trim() || undefined
     };
   }
 
@@ -135,12 +127,6 @@ export function App() {
     setDesign(null);
     setErrorMessage('');
     setStatus(nextStatus);
-  }
-
-  async function bootstrapApp() {
-    const res = await fetch('/api/bootstrap');
-    const data = await res.json();
-    setBootstrap(data);
   }
 
   async function refreshRuns() {
@@ -442,8 +428,7 @@ export function App() {
                 value={textSettings.provider}
                 onChange={(event) => setTextSettings((current) => ({
                   ...current,
-                  provider: event.target.value as TextProviderId,
-                  model: ''
+                  provider: event.target.value as TextProviderId
                 }))}
               >
                 <option value="openrouter">OpenRouter</option>
@@ -458,15 +443,6 @@ export function App() {
                 placeholder={textSettings.provider === 'gemini' ? 'Gemini API key' : 'OpenRouter API key'}
                 type="password"
                 value={textSettings.apiKey || ''}
-              />
-            </label>
-            <label className="fieldBlock">
-              <span className="eyebrow">Model</span>
-              <input
-                className="textInput"
-                onChange={(event) => setTextSettings((current) => ({ ...current, model: event.target.value }))}
-                placeholder={textModelPlaceholder}
-                value={textSettings.model || ''}
               />
             </label>
           </div>
