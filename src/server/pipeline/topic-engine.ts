@@ -1,9 +1,9 @@
-import { config } from '../config';
 import { generateWithGemini } from '../providers/gemini';
 import { generateWithOpenRouter, openRouterSchemas } from '../providers/openrouter';
+import { resolveTextSettings } from '../providers/text-settings';
 import { filterDuplicateTopics, getTopicHistory } from '../storage/topic-history';
 import { clamp } from '../utils';
-import type { Direction, LanguageCode, TopicGenerationResult } from '../../shared/types';
+import type { Direction, LanguageCode, TextGenerationSettings, TopicGenerationResult } from '../../shared/types';
 
 const generatedTopicMemory = new Map<string, Set<string>>();
 
@@ -96,7 +96,8 @@ function buildFallbackTopics(direction: Direction, language: LanguageCode, recen
   };
 }
 
-export async function generateTopicCandidates(direction: Direction, language: LanguageCode) {
+export async function generateTopicCandidates(direction: Direction, language: LanguageCode, textSettings?: TextGenerationSettings) {
+  const resolvedTextSettings = resolveTextSettings(textSettings);
   const memoryKey = `${direction.id}:${language}`;
   const sessionTopics = generatedTopicMemory.get(memoryKey) || new Set<string>();
   const recentHistory = (await getTopicHistory())
@@ -120,23 +121,23 @@ export async function generateTopicCandidates(direction: Direction, language: La
     'Return {"direction","language","topics":[{"topic","hook","angle","audience","noveltyScore","risk"}]}.'
   ].join('\n');
 
-  const generated = config.llmProvider === 'gemini'
+  const generated = resolvedTextSettings.provider === 'gemini'
     ? await generateWithGemini({
       prompt,
       fallback,
       schema: openRouterSchemas.topics,
-      model: config.gemini.model,
-      apiKey: config.gemini.apiKey
+      model: resolvedTextSettings.gemini.model,
+      apiKey: resolvedTextSettings.gemini.apiKey
     })
     : await generateWithOpenRouter({
       prompt,
       fallback,
       schema: openRouterSchemas.topics,
-      model: config.openrouter.model,
-      apiKey: config.openrouter.apiKey,
-      baseUrl: config.openrouter.baseUrl,
-      siteUrl: config.openrouter.siteUrl,
-      appName: config.openrouter.appName
+      model: resolvedTextSettings.openrouter.model,
+      apiKey: resolvedTextSettings.openrouter.apiKey,
+      baseUrl: resolvedTextSettings.openrouter.baseUrl,
+      siteUrl: resolvedTextSettings.openrouter.siteUrl,
+      appName: resolvedTextSettings.openrouter.appName
     });
 
   const dedupedTopics = await filterDuplicateTopics(

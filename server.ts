@@ -40,6 +40,11 @@ async function createApp() {
       },
       directions: DIRECTIONS,
       languages: LANGUAGES,
+      textSettings: {
+        provider: config.llmProvider === 'gemini' ? 'gemini' : 'openrouter',
+        openrouterModel: config.openrouter.model,
+        geminiModel: config.gemini.model
+      },
       rules: await getHermesRules()
     });
   });
@@ -59,7 +64,7 @@ async function createApp() {
 
   app.post('/api/topics/generate', async (req, res) => {
     try {
-      const payload = await generateTopicsForDirection(req.body.directionId, req.body.language || 'en');
+      const payload = await generateTopicsForDirection(req.body.directionId, req.body.language || 'en', req.body.textSettings);
       res.json(payload);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : 'Topic generation failed' });
@@ -75,7 +80,8 @@ async function createApp() {
         topic: req.body.topic,
         languages: req.body.languages || ['en'],
         durationSeconds: Number(req.body.durationSeconds || config.defaultDurationSeconds),
-        hasVoiceover: req.body.hasVoiceover ?? true
+        hasVoiceover: req.body.hasVoiceover ?? true,
+        textSettings: req.body.textSettings
       });
       res.json({
         script: bundle.languages[0],

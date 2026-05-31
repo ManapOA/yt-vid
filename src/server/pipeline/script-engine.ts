@@ -1,8 +1,8 @@
-import { config } from '../config';
 import { CTA_FALLBACK } from '../../shared/constants';
 import { generateWithGemini } from '../providers/gemini';
 import { generateWithOpenRouter, openRouterSchemas } from '../providers/openrouter';
-import type { Direction, LanguageCode, ScriptPackage } from '../../shared/types';
+import { resolveTextSettings } from '../providers/text-settings';
+import type { Direction, LanguageCode, ScriptPackage, TextGenerationSettings } from '../../shared/types';
 import { formatVoiceoverForSpeech, makeSpeechFriendlyLine, removeDirectTopicMention } from './speech';
 
 const localTopicTranslations: Partial<Record<LanguageCode, Record<string, string>>> = {
@@ -119,8 +119,9 @@ function repairMojibake(value: string) {
     : text;
 }
 
-async function translateTopic(topic: string, language: LanguageCode) {
+async function translateTopic(topic: string, language: LanguageCode, textSettings?: ReturnType<typeof resolveTextSettings>) {
   if (language === 'en') return topic;
+  const resolvedTextSettings = textSettings || resolveTextSettings();
   const exactLocalTranslation = localTopicTranslations[language]?.[topic.trim().toLowerCase()];
   if (exactLocalTranslation) return exactLocalTranslation;
 
@@ -132,8 +133,8 @@ async function translateTopic(topic: string, language: LanguageCode) {
   ].join('\n');
 
   try {
-    if (config.llmProvider === 'gemini' && config.gemini.apiKey) {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.gemini.model}:generateContent?key=${config.gemini.apiKey}`, {
+    if (resolvedTextSettings.provider === 'gemini' && resolvedTextSettings.gemini.apiKey) {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${resolvedTextSettings.gemini.model}:generateContent?key=${resolvedTextSettings.gemini.apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -148,17 +149,17 @@ async function translateTopic(topic: string, language: LanguageCode) {
       }
     }
 
-    if (config.openrouter.apiKey) {
-      const response = await fetch(`${config.openrouter.baseUrl}/chat/completions`, {
+    if (resolvedTextSettings.provider === 'openrouter' && resolvedTextSettings.openrouter.apiKey) {
+      const response = await fetch(`${resolvedTextSettings.openrouter.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${config.openrouter.apiKey}`,
+          Authorization: `Bearer ${resolvedTextSettings.openrouter.apiKey}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': config.openrouter.siteUrl,
-          'X-Title': config.openrouter.appName
+          'HTTP-Referer': resolvedTextSettings.openrouter.siteUrl,
+          'X-Title': resolvedTextSettings.openrouter.appName
         },
         body: JSON.stringify({
-          model: config.openrouter.model,
+          model: resolvedTextSettings.openrouter.model,
           temperature: 0.2,
           messages: [
             { role: 'system', content: 'Return only the translated topic text.' },
@@ -375,8 +376,9 @@ function fallbackScript(direction: Direction, topic: string, localizedTopic: str
   };
 }
 
-export async function generateScript(direction: Direction, topic: string, language: LanguageCode, durationSeconds: number) {
-  const localizedTopic = await translateTopic(topic, language);
+export async function generateScript(direction: Direction, topic: string, language: LanguageCode, durationSeconds: number, textSettings?: TextGenerationSettings) {
+  const resolvedTextSettings = resolveTextSettings(textSettings);
+  const localizedTopic = await translateTopic(topic, language, resolvedTextSettings);
   const fallback = fallbackScript(direction, topic, localizedTopic, language, durationSeconds);
   const prompt = [
     'Create a native short-form script for a YouTube Short.',
@@ -396,23 +398,23 @@ export async function generateScript(direction: Direction, topic: string, langua
     'Return {"language","direction","topic","durationSeconds","hook","body","cta","voiceoverText","onScreenText","title","description","tags"}.'
   ].join('\n');
 
-  const generated = await (config.llmProvider === 'gemini'
+  const generated = await (resolvedTextSettings.provider === 'gemini'
     ? generateWithGemini({
       prompt,
       fallback,
       schema: openRouterSchemas.script,
-      model: config.gemini.model,
-      apiKey: config.gemini.apiKey
+      model: resolvedTextSettings.gemini.model,
+      apiKey: resolvedTextSettings.gemini.apiKey
     })
     : generateWithOpenRouter({
       prompt,
       fallback,
       schema: openRouterSchemas.script,
-      model: config.openrouter.model,
-      apiKey: config.openrouter.apiKey,
-      baseUrl: config.openrouter.baseUrl,
-      siteUrl: config.openrouter.siteUrl,
-      appName: config.openrouter.appName
+      model: resolvedTextSettings.openrouter.model,
+      apiKey: resolvedTextSettings.openrouter.apiKey,
+      baseUrl: resolvedTextSettings.openrouter.baseUrl,
+      siteUrl: resolvedTextSettings.openrouter.siteUrl,
+      appName: resolvedTextSettings.openrouter.appName
     }));
 
   return normalizeGeneratedScript(generated, direction, topic, localizedTopic, language);

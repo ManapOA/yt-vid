@@ -10,6 +10,8 @@ import type {
   LanguageCode,
   RunRecord,
   ScriptPackage,
+  TextGenerationSettings,
+  TextProviderId,
   TopicCandidate
 } from '../shared/types';
 
@@ -32,6 +34,22 @@ const emptyDraft: ScriptDraft = {
   tags: '',
   onScreenText: ''
 };
+
+const textSettingsStorageKey = 'yt-vid:text-settings';
+
+function readStoredTextSettings(): TextGenerationSettings {
+  if (typeof window === 'undefined') return { provider: 'openrouter' };
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(textSettingsStorageKey) || '{}') as Partial<TextGenerationSettings>;
+    return {
+      provider: stored.provider === 'gemini' ? 'gemini' : 'openrouter',
+      apiKey: stored.apiKey || '',
+      model: stored.model || ''
+    };
+  } catch {
+    return { provider: 'openrouter', apiKey: '', model: '' };
+  }
+}
 
 function resolveDirectionIdFromAuto(direction: AutoDirectionId) {
   return AUTO_DIRECTIONS.find((item) => item.id === direction)?.directionId || null;
@@ -66,11 +84,16 @@ export function App() {
   const [autoResult, setAutoResult] = useState<AutoVideoResult | null>(null);
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [showTopicCandidates, setShowTopicCandidates] = useState(false);
+  const [textSettings, setTextSettings] = useState<TextGenerationSettings>(() => readStoredTextSettings());
 
   useEffect(() => {
     void bootstrapApp();
     void refreshRuns();
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(textSettingsStorageKey, JSON.stringify(textSettings));
+  }, [textSettings]);
 
   useEffect(() => {
     if (languages.length === 0) return;
@@ -94,6 +117,17 @@ export function App() {
     [activeLanguage, scripts]
   );
   const activeDraft = activeScript ? drafts[activeScript.language] || toDraft(activeScript) : emptyDraft;
+  const textModelPlaceholder = textSettings.provider === 'gemini'
+    ? bootstrap?.textSettings.geminiModel || 'gemini-2.0-flash'
+    : bootstrap?.textSettings.openrouterModel || 'openai/gpt-4o-mini';
+
+  function requestTextSettings(): TextGenerationSettings {
+    return {
+      provider: textSettings.provider,
+      apiKey: textSettings.apiKey?.trim() || undefined,
+      model: textSettings.model?.trim() || undefined
+    };
+  }
 
   function resetCurrentScriptState(nextStatus = 'Ready') {
     setScripts([]);
@@ -131,7 +165,7 @@ export function App() {
       const res = await fetch('/api/topics/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directionId, language: languages[0] })
+        body: JSON.stringify({ directionId, language: languages[0], textSettings: requestTextSettings() })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -167,7 +201,8 @@ export function App() {
           topic,
           languages,
           durationSeconds: 30,
-          hasVoiceover
+          hasVoiceover,
+          textSettings: requestTextSettings()
         })
       });
       const data = await res.json();
@@ -234,7 +269,8 @@ export function App() {
       languages,
       durationSeconds: 30,
       hasVoiceover,
-      scripts: editedScripts
+      scripts: editedScripts,
+      textSettings: requestTextSettings()
     };
     try {
       const res = await fetch('/api/agent/create-video', {
@@ -352,50 +388,88 @@ export function App() {
           <p className="eyebrow">Generate</p>
           <h2>Pick a lane and language</h2>
         </div>
-        <div className="workflowControls">
-          <label className="fieldBlock">
-            <span className="eyebrow">Theme</span>
-            <select
-              className="textInput"
-              value={directionId}
-              onChange={(event) => {
-                const nextDirection = DIRECTIONS.find((direction) => direction.id === event.target.value);
-                setDirectionId(event.target.value);
-                if (nextDirection?.autoCategory) setAutoDirection(nextDirection.autoCategory);
-              }}
-            >
-              {DIRECTIONS.map((direction) => (
-                <option key={direction.id} value={direction.id}>{direction.name}</option>
-              ))}
-            </select>
-          </label>
-          <label className="fieldBlock">
-            <span className="eyebrow">Language</span>
-            <select
-              className="textInput"
-              value={languages[0] || activeLanguage}
-              onChange={(event) => {
-                const language = event.target.value as LanguageCode;
-                setLanguages([language]);
-                setActiveLanguage(language);
-                resetCurrentScriptState(`Language set to ${language.toUpperCase()}`);
-              }}
-            >
-              {LANGUAGES.map((language) => (
-                <option key={language.code} value={language.code}>{language.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="toggleField">
-            <span className="eyebrow">Voice</span>
-            <span className="toggleRow">
-              <input checked={hasVoiceover} onChange={(event) => setHasVoiceover(event.target.checked)} type="checkbox" />
-              Voiceover
-            </span>
-          </label>
-          <button className="autoPrimaryButton" disabled={isGeneratingTopics} onClick={() => void generateTopics()} type="button">
-            {isGeneratingTopics ? 'Generating...' : 'Generate'}
-          </button>
+        <div className="workflowStack">
+          <div className="workflowControls">
+            <label className="fieldBlock">
+              <span className="eyebrow">Theme</span>
+              <select
+                className="textInput"
+                value={directionId}
+                onChange={(event) => {
+                  const nextDirection = DIRECTIONS.find((direction) => direction.id === event.target.value);
+                  setDirectionId(event.target.value);
+                  if (nextDirection?.autoCategory) setAutoDirection(nextDirection.autoCategory);
+                }}
+              >
+                {DIRECTIONS.map((direction) => (
+                  <option key={direction.id} value={direction.id}>{direction.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="fieldBlock">
+              <span className="eyebrow">Language</span>
+              <select
+                className="textInput"
+                value={languages[0] || activeLanguage}
+                onChange={(event) => {
+                  const language = event.target.value as LanguageCode;
+                  setLanguages([language]);
+                  setActiveLanguage(language);
+                  resetCurrentScriptState(`Language set to ${language.toUpperCase()}`);
+                }}
+              >
+                {LANGUAGES.map((language) => (
+                  <option key={language.code} value={language.code}>{language.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="toggleField">
+              <span className="eyebrow">Voice</span>
+              <span className="toggleRow">
+                <input checked={hasVoiceover} onChange={(event) => setHasVoiceover(event.target.checked)} type="checkbox" />
+                Voiceover
+              </span>
+            </label>
+            <button className="autoPrimaryButton" disabled={isGeneratingTopics} onClick={() => void generateTopics()} type="button">
+              {isGeneratingTopics ? 'Generating...' : 'Generate'}
+            </button>
+          </div>
+          <div className="providerControls">
+            <label className="fieldBlock">
+              <span className="eyebrow">Provider</span>
+              <select
+                className="textInput"
+                value={textSettings.provider}
+                onChange={(event) => setTextSettings((current) => ({
+                  ...current,
+                  provider: event.target.value as TextProviderId,
+                  model: ''
+                }))}
+              >
+                <option value="openrouter">OpenRouter</option>
+                <option value="gemini">Gemini</option>
+              </select>
+            </label>
+            <label className="fieldBlock providerKeyField">
+              <span className="eyebrow">API key</span>
+              <input
+                className="textInput"
+                onChange={(event) => setTextSettings((current) => ({ ...current, apiKey: event.target.value }))}
+                placeholder={textSettings.provider === 'gemini' ? 'Gemini API key' : 'OpenRouter API key'}
+                type="password"
+                value={textSettings.apiKey || ''}
+              />
+            </label>
+            <label className="fieldBlock">
+              <span className="eyebrow">Model</span>
+              <input
+                className="textInput"
+                onChange={(event) => setTextSettings((current) => ({ ...current, model: event.target.value }))}
+                placeholder={textModelPlaceholder}
+                value={textSettings.model || ''}
+              />
+            </label>
+          </div>
         </div>
       </section>
 

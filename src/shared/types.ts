@@ -1,4 +1,11 @@
 export type LanguageCode = 'en' | 'ru' | 'de' | 'es' | 'it' | 'kk';
+export type TextProviderId = 'openrouter' | 'gemini';
+
+export type TextGenerationSettings = {
+  provider: TextProviderId;
+  apiKey?: string;
+  model?: string;
+};
 
 export type AutoDirectionId =
   | 'psychology'
@@ -215,6 +222,7 @@ export type CreateVideoPayload = {
   durationSeconds: number;
   hasVoiceover: boolean;
   scripts?: ScriptPackage[];
+  textSettings?: TextGenerationSettings;
 };
 
 export type BootstrapPayload = {
@@ -224,5 +232,10 @@ export type BootstrapPayload = {
   };
   directions: Direction[];
   languages: LanguageOption[];
+  textSettings: {
+    provider: TextProviderId;
+    openrouterModel: string;
+    geminiModel: string;
+  };
   rules: HermesRule[];
 };

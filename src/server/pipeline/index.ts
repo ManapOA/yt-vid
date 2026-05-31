@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { DIRECTIONS } from '../../shared/constants';
-import type { CreateVideoPayload, LanguageCode, RunRecord, ScriptPackage } from '../../shared/types';
+import type { CreateVideoPayload, LanguageCode, RunRecord, ScriptPackage, TextGenerationSettings } from '../../shared/types';
 import { appendHermesDecision } from '../hermes/decisions';
 import { createYouTubePackage } from './assembler';
 import { createDesign } from './design';
@@ -21,7 +21,8 @@ export async function runFullPipeline({
   languages,
   durationSeconds,
   hasVoiceover,
-  scripts: scriptOverrides
+  scripts: scriptOverrides,
+  textSettings
 }: CreateVideoPayload) {
   const direction = DIRECTIONS.find((item) => item.id === directionId);
   if (!direction) throw new Error('Unknown direction');
@@ -35,7 +36,7 @@ export async function runFullPipeline({
       durationSeconds
     }))
     : await Promise.all(
-      languages.map(async (language) => humanizeScript(await generateScript(direction, topic, language, durationSeconds)))
+      languages.map(async (language) => humanizeScript(await generateScript(direction, topic, language, durationSeconds, textSettings)))
     );
   const multilingual = await buildMultilingualScript(scripts);
   multilingual.hasVoiceover = hasVoiceover;
@@ -94,19 +95,21 @@ export async function buildScriptDraft({
   topic,
   languages,
   durationSeconds,
-  hasVoiceover
+  hasVoiceover,
+  textSettings
 }: {
   directionId: string;
   topic: string;
   languages: LanguageCode[];
   durationSeconds: number;
   hasVoiceover: boolean;
+  textSettings?: TextGenerationSettings;
 }) {
   const direction = DIRECTIONS.find((item) => item.id === directionId);
   if (!direction) throw new Error('Unknown direction');
 
   const scripts = await Promise.all(
-    languages.map(async (language) => humanizeScript(await generateScript(direction, topic, language, durationSeconds)))
+    languages.map(async (language) => humanizeScript(await generateScript(direction, topic, language, durationSeconds, textSettings)))
   );
   const multilingual = await buildMultilingualScript(scripts);
   multilingual.hasVoiceover = hasVoiceover;
@@ -114,8 +117,8 @@ export async function buildScriptDraft({
   return { bundle, design };
 }
 
-export async function generateTopicsForDirection(directionId: string, language: LanguageCode) {
+export async function generateTopicsForDirection(directionId: string, language: LanguageCode, textSettings?: TextGenerationSettings) {
   const direction = DIRECTIONS.find((item) => item.id === directionId);
   if (!direction) throw new Error('Unknown direction');
-  return generateTopicCandidates(direction, language);
+  return generateTopicCandidates(direction, language, textSettings);
 }

@@ -176,6 +176,18 @@ h1 {
   align-items: end;
 }
 
+.workflowStack {
+  display: grid;
+  gap: 10px;
+}
+
+.providerControls {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(260px, 1.4fr) minmax(190px, 0.9fr);
+  gap: 10px;
+  align-items: end;
+}
+
 .fieldBlock {
   display: grid;
   gap: 6px;
@@ -587,7 +599,8 @@ textarea {
   }
 
   .workflowPanel,
-  .workflowControls {
+  .workflowControls,
+  .providerControls {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -615,7 +628,8 @@ textarea {
   .sectionHeaderRow,
   .autoControls,
   .workflowPanel,
-  .workflowControls {
+  .workflowControls,
+  .providerControls {
     grid-template-columns: 1fr;
     display: grid;
   }
