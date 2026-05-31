@@ -340,19 +340,7 @@ export function App() {
       <section className="heroPanel">
         <div className="heroCopy">
           <p className="eyebrow">yt-vid</p>
-          <h1>Local Shorts factory with real render, voiceover, Hermes checks, and editable multilingual scripts.</h1>
-          <p className="subcopy">Generate fresh topics, edit every language variant, and open artifacts directly from the dashboard.</p>
-          <div className="heroChips">
-            <span>OpenRouter/Gemini</span>
-            <span>Cartesia</span>
-            <span>Remotion</span>
-            <span>Hermes</span>
-          </div>
-        </div>
-        <div className="heroStatus">
-          <strong>{status}</strong>
-          <span>{bootstrap?.project.url || 'http://localhost:3000'}</span>
-          <span>{hasVoiceover ? 'Voiceover ON' : 'Voiceover OFF'}</span>
+          <h1>Local Shorts factory</h1>
         </div>
       </section>
 
@@ -367,7 +355,15 @@ export function App() {
         <div className="workflowControls">
           <label className="fieldBlock">
             <span className="eyebrow">Theme</span>
-            <select className="textInput" value={directionId} onChange={(event) => setDirectionId(event.target.value)}>
+            <select
+              className="textInput"
+              value={directionId}
+              onChange={(event) => {
+                const nextDirection = DIRECTIONS.find((direction) => direction.id === event.target.value);
+                setDirectionId(event.target.value);
+                if (nextDirection?.autoCategory) setAutoDirection(nextDirection.autoCategory);
+              }}
+            >
               {DIRECTIONS.map((direction) => (
                 <option key={direction.id} value={direction.id}>{direction.name}</option>
               ))}
@@ -406,33 +402,7 @@ export function App() {
       <section className="dashboardGrid">
         <div className="controlColumn">
           <div className="panel">
-            <p className="eyebrow">1. Direction</p>
-            <h2>Choose the lane</h2>
-            <div className="directionGrid">
-              {DIRECTIONS.map((direction) => (
-                <button
-                  key={direction.id}
-                  className={directionId === direction.id ? 'directionCard active' : 'directionCard'}
-                  onClick={() => {
-                    setDirectionId(direction.id);
-                    if (direction.autoCategory) setAutoDirection(direction.autoCategory);
-                  }}
-                  type="button"
-                >
-                  <strong>{direction.name}</strong>
-                  <span>{direction.summary}</span>
-                </button>
-              ))}
-            </div>
-            <div className="toolbar">
-              <button className="compactButton" disabled={isGeneratingTopics} onClick={() => void generateTopics()} type="button">
-                {isGeneratingTopics ? 'Generating...' : 'Generate topics'}
-              </button>
-            </div>
-          </div>
-
-          <div className="panel">
-            <p className="eyebrow">2. Topic</p>
+            <p className="eyebrow">Topic</p>
             <div className="sectionHeaderRow">
               <h2>Fresh candidates</h2>
               <button
@@ -506,7 +476,7 @@ export function App() {
           </div>
 
           <div className="panel">
-            <p className="eyebrow">3. Editor</p>
+            <p className="eyebrow">Editor</p>
             <h2>Adjust before render</h2>
             <div className="languageTabs">
               {scripts.map((item) => (
@@ -530,7 +500,6 @@ export function App() {
               <textarea value={activeDraft.onScreenText} onChange={(event) => updateDraftField('onScreenText', event.target.value)} placeholder="On-screen text" />
             </div>
             <div className="toolbar">
-              <button className="compactButton" disabled={!activeScript} onClick={applyDraft} type="button">Apply</button>
               <button className="compactButton" disabled={scripts.length === 0 || isRendering} onClick={renderVideo} type="button">
                 {isRendering ? 'Rendering...' : 'Create video'}
               </button>
@@ -544,13 +513,13 @@ export function App() {
             <div className="sectionHeaderRow">
               <h2>Final look</h2>
               <button className="compactButton previewRenderButton" disabled={scripts.length === 0 || isRendering} onClick={renderVideo} type="button">
-                {isRendering ? 'Rendering...' : 'Create MP4'}
+                {isRendering ? 'Rendering...' : 'Create video'}
               </button>
             </div>
             <PreviewPhone script={activeScript} design={design} />
           </div>
 
-          <div className="panel">
+          <div className="panel hiddenPanel">
             <p className="eyebrow">Runs</p>
             <h2>Recent outputs</h2>
             <div className="runList">

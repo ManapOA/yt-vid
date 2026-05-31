@@ -43,16 +43,13 @@ button {
 }
 
 .heroPanel {
-  padding: 16px 18px;
-  display: grid;
-  grid-template-columns: 1.9fr 0.7fr;
-  gap: 14px;
-  align-items: center;
+  padding: 14px 18px;
+  display: block;
 }
 
 .heroCopy {
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 
 .eyebrow {
@@ -74,6 +71,10 @@ h1 {
   font-size: clamp(20px, 1.8vw, 28px);
   line-height: 1.05;
   max-width: 38ch;
+}
+
+.hiddenPanel {
+  display: none;
 }
 
 .subcopy {
