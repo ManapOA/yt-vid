@@ -82,13 +82,6 @@ export function App() {
   }, [directionId]);
 
   useEffect(() => {
-    const mappedDirectionId = resolveDirectionIdFromAuto(autoDirection);
-    if (mappedDirectionId && mappedDirectionId !== directionId) {
-      setDirectionId(mappedDirectionId);
-    }
-  }, [autoDirection, directionId]);
-
-  useEffect(() => {
     setLanguages((current) => {
       if (current[0] === autoLanguage && current.length === 1) return current;
       return [autoLanguage];
@@ -366,64 +359,48 @@ export function App() {
       {errorMessage ? <section className="errorBanner">{errorMessage}</section> : null}
       {autoError ? <section className="errorBanner">{autoError}</section> : null}
 
-      <section className="panel">
-        <p className="eyebrow">Auto Video Factory</p>
-        <div className="autoHeader">
-          <div>
-            <h2>Generate a ready MP4 in one click</h2>
-            <p className="pillHint">Topic, poster, voiceover, captions, music, Hermes checks, and render are handled automatically.</p>
-          </div>
-          <strong className="autoStatus">{autoStatus}</strong>
+      <section className="panel workflowPanel">
+        <div>
+          <p className="eyebrow">Generate</p>
+          <h2>Pick a lane and language</h2>
         </div>
-        <div className="autoControls">
+        <div className="workflowControls">
           <label className="fieldBlock">
             <span className="eyebrow">Theme</span>
-            <select className="textInput" value={autoDirection} onChange={(event) => setAutoDirection(event.target.value as AutoDirectionId)}>
-              {AUTO_DIRECTIONS.map((direction) => (
-                <option key={direction.id} value={direction.id}>{direction.label}</option>
+            <select className="textInput" value={directionId} onChange={(event) => setDirectionId(event.target.value)}>
+              {DIRECTIONS.map((direction) => (
+                <option key={direction.id} value={direction.id}>{direction.name}</option>
               ))}
             </select>
           </label>
           <label className="fieldBlock">
             <span className="eyebrow">Language</span>
-            <select className="textInput" value={autoLanguage} onChange={(event) => setAutoLanguage(event.target.value as LanguageCode)}>
+            <select
+              className="textInput"
+              value={languages[0] || activeLanguage}
+              onChange={(event) => {
+                const language = event.target.value as LanguageCode;
+                setLanguages([language]);
+                setActiveLanguage(language);
+                resetCurrentScriptState(`Language set to ${language.toUpperCase()}`);
+              }}
+            >
               {LANGUAGES.map((language) => (
                 <option key={language.code} value={language.code}>{language.label}</option>
               ))}
             </select>
           </label>
-          <label className="fieldBlock autoCountField">
-            <span className="eyebrow">Count</span>
-            <input
-              className="textInput"
-              max={1}
-              min={1}
-              onChange={(event) => setAutoCount(Math.min(1, Math.max(1, Number(event.target.value) || 1)))}
-              type="number"
-              value={autoCount}
-            />
+          <label className="toggleField">
+            <span className="eyebrow">Voice</span>
+            <span className="toggleRow">
+              <input checked={hasVoiceover} onChange={(event) => setHasVoiceover(event.target.checked)} type="checkbox" />
+              Voiceover
+            </span>
           </label>
-          <button className="autoPrimaryButton" disabled={isAutoGenerating} onClick={generateAutoVideo} type="button">
-            {isAutoGenerating ? 'Generating auto video...' : 'Generate Auto Video'}
+          <button className="autoPrimaryButton" disabled={isGeneratingTopics} onClick={() => void generateTopics()} type="button">
+            {isGeneratingTopics ? 'Generating...' : 'Generate'}
           </button>
         </div>
-
-        {autoResult ? (
-          <div className="runDetails autoResultPanel">
-            <h3>{autoResult.summary.poster.title}</h3>
-            <p><strong>Topic:</strong> {autoResult.summary.topic}</p>
-            <p><strong>Video:</strong> <a href={`/${autoResult.videoPath}`} rel="noreferrer" target="_blank">Open MP4</a></p>
-            <p><strong>Voiceover:</strong> {autoResult.summary.voiceover.text}</p>
-            <div className="artifactGrid">
-              {autoResult.summary.poster.facts.map((fact, index) => (
-                <span className="artifactLink" key={`${fact}-${index}`}>{fact}</span>
-              ))}
-              {autoResult.summary.onScreenText.map((item, index) => (
-                <span className="artifactLink video" key={`${item}-${index}`}>{item}</span>
-              ))}
-            </div>
-          </div>
-        ) : null}
       </section>
 
       <section className="dashboardGrid">
@@ -436,7 +413,10 @@ export function App() {
                 <button
                   key={direction.id}
                   className={directionId === direction.id ? 'directionCard active' : 'directionCard'}
-                  onClick={() => setDirectionId(direction.id)}
+                  onClick={() => {
+                    setDirectionId(direction.id);
+                    if (direction.autoCategory) setAutoDirection(direction.autoCategory);
+                  }}
                   type="button"
                 >
                   <strong>{direction.name}</strong>
@@ -448,10 +428,6 @@ export function App() {
               <button className="compactButton" disabled={isGeneratingTopics} onClick={() => void generateTopics()} type="button">
                 {isGeneratingTopics ? 'Generating...' : 'Generate topics'}
               </button>
-              <label className="toggleRow">
-                <input checked={hasVoiceover} onChange={(event) => setHasVoiceover(event.target.checked)} type="checkbox" />
-                Voiceover
-              </label>
             </div>
           </div>
 
@@ -526,9 +502,6 @@ export function App() {
               <button className="compactButton" disabled={isGeneratingScripts || !selectedTopic && !customTopic.trim()} onClick={generateScript} type="button">
                 {isGeneratingScripts ? 'Generating...' : 'Generate scripts'}
               </button>
-              <button className="compactButton" disabled={!activeScript || isHumanizing} onClick={humanize} type="button">
-                {isHumanizing ? 'Humanizing...' : 'Humanize active'}
-              </button>
             </div>
           </div>
 
@@ -557,9 +530,9 @@ export function App() {
               <textarea value={activeDraft.onScreenText} onChange={(event) => updateDraftField('onScreenText', event.target.value)} placeholder="On-screen text" />
             </div>
             <div className="toolbar">
-              <button className="compactButton" disabled={!activeScript} onClick={applyDraft} type="button">Apply active edits</button>
+              <button className="compactButton" disabled={!activeScript} onClick={applyDraft} type="button">Apply</button>
               <button className="compactButton" disabled={scripts.length === 0 || isRendering} onClick={renderVideo} type="button">
-                {isRendering ? 'Rendering video...' : 'Create full video'}
+                {isRendering ? 'Rendering...' : 'Create video'}
               </button>
             </div>
           </div>

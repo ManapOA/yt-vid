@@ -71,9 +71,9 @@ p {
 }
 
 h1 {
-  font-size: clamp(22px, 2.5vw, 36px);
-  line-height: 1.02;
-  max-width: 20ch;
+  font-size: clamp(20px, 1.8vw, 28px);
+  line-height: 1.05;
+  max-width: 38ch;
 }
 
 .subcopy {
@@ -145,6 +145,14 @@ h1 {
   padding: 14px;
 }
 
+.workflowPanel {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.42fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: end;
+  margin-top: 12px;
+}
+
 .autoHeader {
   display: flex;
   align-items: flex-start;
@@ -160,9 +168,23 @@ h1 {
   margin-top: 10px;
 }
 
+.workflowControls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.1fr) minmax(180px, 1fr) minmax(110px, 0.5fr) minmax(150px, 0.7fr);
+  gap: 10px;
+  align-items: end;
+}
+
 .fieldBlock {
   display: grid;
   gap: 6px;
+}
+
+.toggleField {
+  display: grid;
+  gap: 6px;
+  min-height: 64px;
+  align-content: end;
 }
 
 .autoCountField {
@@ -432,7 +454,7 @@ textarea {
 .previewTitleWrap {
   display: flex;
   align-items: center;
-  min-height: 88px;
+  min-height: 140px;
 }
 
 .previewSubtitleStage {
@@ -563,6 +585,11 @@ textarea {
     grid-template-columns: 1fr 1fr;
   }
 
+  .workflowPanel,
+  .workflowControls {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .stickyPanel {
     position: static;
   }
@@ -585,7 +612,9 @@ textarea {
 
   .autoHeader,
   .sectionHeaderRow,
-  .autoControls {
+  .autoControls,
+  .workflowPanel,
+  .workflowControls {
     grid-template-columns: 1fr;
     display: grid;
   }
