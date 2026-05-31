@@ -1,9 +1,16 @@
 import type { DesignPackage, ScriptPackage } from '../shared/types';
 
+function estimateSpeechDurationSec(text: string) {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(3, Math.min(30, Math.ceil(words / 2.6)));
+}
+
 export function PreviewPhone({ script, design }: { script: ScriptPackage | null; design: DesignPackage | null }) {
   if (!script || !design) {
     return <div className="previewEmpty">Generate a script to see the final video look.</div>;
   }
+
+  const previewDuration = estimateSpeechDurationSec(script.voiceoverText || [script.hook, ...script.body, script.cta].join(' '));
 
   return (
     <div
@@ -13,7 +20,7 @@ export function PreviewPhone({ script, design }: { script: ScriptPackage | null;
       }}
     >
       <div className="previewMeta">
-        <span>{script.durationSeconds}s</span>
+        <span>~{previewDuration}s</span>
         <span>{script.language.toUpperCase()}</span>
       </div>
       <div className="previewTitleWrap">
