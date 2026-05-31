@@ -4,27 +4,7 @@ import { config } from '../config';
 import { synthesizeCartesiaVoice } from '../providers/cartesia';
 import type { MultiScriptPackage, VoiceArtifact } from '../../shared/types';
 import { formatVoiceoverForSpeech } from './speech';
-
-function getWavDurationSec(buffer: Buffer) {
-  if (buffer.length < 44 || buffer.toString('ascii', 0, 4) !== 'RIFF' || buffer.toString('ascii', 8, 12) !== 'WAVE') {
-    return null;
-  }
-
-  const byteRate = buffer.readUInt32LE(28);
-  if (!byteRate) return null;
-
-  let offset = 12;
-  while (offset + 8 <= buffer.length) {
-    const chunkId = buffer.toString('ascii', offset, offset + 4);
-    const chunkSize = buffer.readUInt32LE(offset + 4);
-    if (chunkId === 'data') {
-      return Number((chunkSize / byteRate).toFixed(2));
-    }
-    offset += 8 + chunkSize + (chunkSize % 2);
-  }
-
-  return null;
-}
+import { getWavDurationSecFromBuffer } from './audio-duration';
 
 export async function createVoiceovers(runDir: string, bundle: MultiScriptPackage) {
   const artifacts: VoiceArtifact[] = [];
@@ -47,7 +27,7 @@ export async function createVoiceovers(runDir: string, bundle: MultiScriptPackag
     const absolutePath = path.join(runDir, fileName);
     await fs.writeFile(absolutePath, bytes);
     const durationSec = config.cartesia.outputContainer === 'wav'
-      ? getWavDurationSec(bytes)
+      ? getWavDurationSecFromBuffer(bytes)
       : null;
 
     if (durationSec) {

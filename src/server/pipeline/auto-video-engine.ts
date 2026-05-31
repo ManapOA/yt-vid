@@ -26,6 +26,7 @@ import { appendTopicHistory } from '../storage/topic-history';
 import { buildMultilingualScript } from './translation';
 import { sentence } from '../utils';
 import { generateTopicCandidates } from './topic-engine';
+import { getWavDurationSec } from './audio-duration';
 
 const categoryToDirectionId: Record<Exclude<AutoDirectionId, 'random'>, string> = {
   psychology: 'self-awareness',
@@ -68,15 +69,6 @@ function buildAutoScript(direction: Direction, material: AutoMaterial, durationS
     description: material.youtube.description,
     tags: material.youtube.tags
   };
-}
-
-async function getWavDurationSec(filePath: string) {
-  const buffer = await fs.readFile(filePath);
-  if (buffer.length < 44 || buffer.toString('ascii', 0, 4) !== 'RIFF') return null;
-  const byteRate = buffer.readUInt32LE(28);
-  const dataSize = buffer.readUInt32LE(40);
-  if (!byteRate) return null;
-  return dataSize / byteRate;
 }
 
 async function createAutoRunRecord({

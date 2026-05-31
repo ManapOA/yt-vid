@@ -5,6 +5,7 @@ import { renderMedia, selectComposition } from '@remotion/renderer';
 import { config } from '../config';
 import { runRegressionChecks } from '../hermes/regression-checks';
 import type { DesignPackage, MultiScriptPackage } from '../../shared/types';
+import { getWavDurationSec } from './audio-duration';
 
 async function createBundle() {
   return bundle({
@@ -37,33 +38,29 @@ async function fileToDataUrl(filePath: string | null) {
   return `data:${getMimeType(normalizedPath)};base64,${buffer.toString('base64')}`;
 }
 
-async function getWavDurationSec(filePath: string | null) {
-  if (!filePath) return null;
-  const normalizedPath = normalizeAssetPath(filePath);
-  const buffer = await fs.readFile(normalizedPath);
-  if (buffer.length < 44 || buffer.toString('ascii', 0, 4) !== 'RIFF' || buffer.toString('ascii', 8, 12) !== 'WAVE') {
-    return null;
-  }
-
-  const byteRate = buffer.readUInt32LE(28);
-  if (!byteRate) return null;
-
-  let offset = 12;
-  while (offset + 8 <= buffer.length) {
-    const chunkId = buffer.toString('ascii', offset, offset + 4);
-    const chunkSize = buffer.readUInt32LE(offset + 4);
-    if (chunkId === 'data') {
-      return Number((chunkSize / byteRate).toFixed(2));
-    }
-    offset += 8 + chunkSize + (chunkSize % 2);
-  }
-
-  return null;
-}
-
 function estimateSpeechDurationSec(text: string) {
   const words = String(text || '').trim().split(/\s+/).filter(Boolean).length;
   return Math.max(3, Number((words / 2.6).toFixed(2)));
+}
+
+async function findVoiceFile(runDir: string, language: string) {
+  const preferredExt = config.cartesia.outputContainer === 'mp3' ? 'mp3' : 'wav';
+  const candidates = [
+    path.join(runDir, `voice-${language}.${preferredExt}`),
+    path.join(runDir, `voice-${language}.wav`),
+    path.join(runDir, `voice-${language}.mp3`)
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // Try the next supported voice container.
+    }
+  }
+
+  return null;
 }
 
 export async function renderVideoRun({
@@ -92,10 +89,13 @@ export async function renderVideoRun({
   const outputs: Record<string, string> = {};
   const stagedMusicFile = await fileToDataUrl(musicFile);
   const stagedVoiceFiles: Record<string, string | null> = {};
+  const voiceFilePaths: Record<string, string | null> = {};
 
   for (const script of bundleData.languages) {
+    const voiceFilePath = bundleData.hasVoiceover ? await findVoiceFile(runDir, script.language) : null;
+    voiceFilePaths[script.language] = voiceFilePath;
     stagedVoiceFiles[script.language] = bundleData.hasVoiceover
-      ? await fileToDataUrl(path.join(runDir, `voice-${script.language}.wav`))
+      ? await fileToDataUrl(voiceFilePath)
       : null;
   }
 
@@ -104,8 +104,8 @@ export async function renderVideoRun({
   for (const script of bundleData.languages) {
     const outputLocation = path.join(runDir, `short-${script.language}.mp4`);
     const stagedVoiceFile = stagedVoiceFiles[script.language];
-    const voiceFilePath = bundleData.hasVoiceover ? path.join(runDir, `voice-${script.language}.wav`) : null;
-    const actualVoiceDurationSec = await getWavDurationSec(voiceFilePath);
+    const voiceFilePath = voiceFilePaths[script.language];
+    const actualVoiceDurationSec = await getWavDurationSec(voiceFilePath ? normalizeAssetPath(voiceFilePath) : null);
     const effectiveDurationSec = actualVoiceDurationSec || (bundleData.hasVoiceover
       ? estimateSpeechDurationSec(script.voiceoverText)
       : Number(script.durationSeconds || 8));
