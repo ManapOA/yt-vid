@@ -16,10 +16,12 @@ export function PreviewPhone({ script, design }: { script: ScriptPackage | null;
         <span>{script.durationSeconds}s</span>
         <span>{script.language.toUpperCase()}</span>
       </div>
-      <div className="previewTitle">{script.title}</div>
-      <div className="previewCaptions">
-        {script.onScreenText.map((line, index) => (
-          <div className={index === 0 ? 'caption active' : 'caption'} key={`${line}-${index}`}>
+      <div className="previewTitleWrap">
+        <div className="previewTitle">{script.title}</div>
+      </div>
+      <div className="previewSubtitleStage">
+        {script.onScreenText.slice(0, 3).map((line, index) => (
+          <div className="previewSubtitleLine" key={`${line}-${index}`} style={{ animationDelay: `${index * 0.08}s` }}>
             {line}
           </div>
         ))}
@@ -27,7 +29,7 @@ export function PreviewPhone({ script, design }: { script: ScriptPackage | null;
       {design.ctaPresentation.showOnScreenCta && design.ctaPresentation.onScreenCtaText ? (
         <div className="previewCta">{design.ctaPresentation.onScreenCtaText}</div>
       ) : (
-        <div className="previewRule">CTA is spoken in voiceover, so no on-screen CTA block.</div>
+        <div className="previewRule">Voice CTA only</div>
       )}
     </div>
   );

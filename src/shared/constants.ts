@@ -1,4 +1,4 @@
-import type { Direction, LanguageOption } from './types';
+import type { AutoDirectionId, Direction, LanguageOption } from './types';
 
 export const PROJECT_NAME = 'yt-vid';
 export const OUTPUT_ROOT = 'output/runs';
@@ -6,6 +6,7 @@ export const OUTPUT_ROOT = 'output/runs';
 export const LANGUAGES: LanguageOption[] = [
   { code: 'en', label: 'English' },
   { code: 'ru', label: 'Russian' },
+  { code: 'kk', label: 'Kazakh' },
   { code: 'de', label: 'German' },
   { code: 'es', label: 'Spanish' },
   { code: 'it', label: 'Italian' }
@@ -20,6 +21,7 @@ export const DIRECTIONS: Direction[] = [
     style: 'aurora-glass',
     color: '#f46d43',
     category: 'psychology',
+    autoCategory: 'psychology',
     topicSeeds: [
       'why some people joke when they are overwhelmed',
       'the habit that shows someone still cares',
@@ -34,6 +36,7 @@ export const DIRECTIONS: Direction[] = [
     style: 'ember-signal',
     color: '#ff8c61',
     category: 'relationships',
+    autoCategory: 'relationships',
     topicSeeds: [
       'why some people pull away right after getting close',
       'the quiet way someone tests if they can trust you',
@@ -48,6 +51,7 @@ export const DIRECTIONS: Direction[] = [
     style: 'cosmic-grid',
     color: '#73c2fb',
     category: 'astrology',
+    autoCategory: 'zodiac',
     topicSeeds: [
       'zodiac signs that act fine but remember everything',
       'why some signs go silent instead of arguing',
@@ -62,6 +66,7 @@ export const DIRECTIONS: Direction[] = [
     style: 'sage-frame',
     color: '#85b995',
     category: 'mindset',
+    autoCategory: 'mindset',
     topicSeeds: [
       'why overthinking gets louder when success gets close',
       'the quiet ambition some people never announce',
@@ -76,6 +81,7 @@ export const DIRECTIONS: Direction[] = [
     style: 'prism-noir',
     color: '#b8a1ff',
     category: 'numerology',
+    autoCategory: 'numerology',
     topicSeeds: [
       'why repeating numbers feel louder during a life shift',
       'the kind of person who waits for signs before a big move',
@@ -84,10 +90,24 @@ export const DIRECTIONS: Direction[] = [
   }
 ];
 
+export const AUTO_DIRECTIONS: Array<{
+  id: AutoDirectionId;
+  label: string;
+  directionId?: string;
+}> = [
+  { id: 'psychology', label: 'Psychology', directionId: 'self-awareness' },
+  { id: 'relationships', label: 'Relationships', directionId: 'relationship-decoder' },
+  { id: 'zodiac', label: 'Zodiac', directionId: 'zodiac-energy' },
+  { id: 'mindset', label: 'Mindset', directionId: 'mindset-patterns' },
+  { id: 'numerology', label: 'Numerology', directionId: 'numerology-vibes' },
+  { id: 'random', label: 'Random' }
+];
+
 export const CTA_FALLBACK = {
   en: 'Save this if it felt a little too accurate.',
-  ru: 'Сохрани, если это попало слишком точно.',
-  de: 'Speicher das, wenn es zu genau war.',
-  es: 'Guárdalo si se sintió demasiado exacto.',
-  it: 'Salvalo se ti è sembrato troppo preciso.'
+  ru: 'Сохрани это видео, если узнал себя.',
+  kk: 'Егер өзіңді танысаң, бұл видеоны сақтап қой.',
+  de: 'Speicher das, wenn es sich zu genau angefuhlt hat.',
+  es: 'Guarda este video si te resulto demasiado preciso.',
+  it: 'Salva questo video se ti e sembrato fin troppo preciso.'
 };

@@ -12,7 +12,9 @@ import { createDesign } from './src/server/pipeline/design';
 import { runFullPipeline, generateTopicsForDirection, buildScriptDraft } from './src/server/pipeline';
 import { humanizeScript } from './src/server/pipeline/humanize';
 import { buildMultilingualScript } from './src/server/pipeline/translation';
-import { listRuns } from './src/server/storage/runs';
+import { getRun, listRuns } from './src/server/storage/runs';
+import { autoVideoRequestSchema } from './src/shared/schemas';
+import { runAutoVideoPipeline } from './src/server/pipeline/auto-video-engine';
 
 async function createApp() {
   const app = express();
@@ -39,6 +41,15 @@ async function createApp() {
 
   app.get('/api/runs', async (_req, res) => {
     res.json({ runs: await listRuns() });
+  });
+
+  app.get('/api/runs/:runId', async (req, res) => {
+    const run = await getRun(req.params.runId);
+    if (!run) {
+      res.status(404).json({ error: 'Run not found' });
+      return;
+    }
+    res.json({ run });
   });
 
   app.post('/api/topics/generate', async (req, res) => {
@@ -115,6 +126,19 @@ async function createApp() {
       res.json({ run });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : 'Pipeline failed' });
+    }
+  });
+
+  app.post('/api/runs/auto', async (req, res) => {
+    try {
+      const payload = autoVideoRequestSchema.parse(req.body);
+      const result = await runAutoVideoPipeline({
+        ...payload,
+        count: payload.count || 1
+      });
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Auto video pipeline failed' });
     }
   });
 

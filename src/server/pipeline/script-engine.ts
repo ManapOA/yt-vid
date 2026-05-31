@@ -3,128 +3,118 @@ import { CTA_FALLBACK } from '../../shared/constants';
 import { generateWithGemini } from '../providers/gemini';
 import { generateWithOpenRouter, openRouterSchemas } from '../providers/openrouter';
 import type { Direction, LanguageCode, ScriptPackage } from '../../shared/types';
+import { formatVoiceoverForSpeech, makeSpeechFriendlyLine, removeDirectTopicMention } from './speech';
 
 const localTopicTranslations: Partial<Record<LanguageCode, Record<string, string>>> = {
   ru: {
-    'why some people joke when they are overwhelmed': 'почему некоторые люди шутят, когда им слишком тяжело',
-    'the habit that shows someone still cares': 'привычка, которая показывает, что человеку все еще не все равно',
-    'why silence feels louder when someone matters': 'почему тишина ощущается громче, когда человек важен',
-    'why some people pull away right after getting close': 'почему некоторые люди отдаляются сразу после сближения',
-    'the quiet way someone tests if they can trust you': 'тихий способ, которым человек проверяет, можно ли тебе доверять',
-    'when pride gets in the way of saying i miss you': 'когда гордость мешает сказать «я скучаю»',
-    'zodiac signs that act fine but remember everything': 'знаки зодиака, которые делают вид, что все нормально, но помнят все',
-    'why some signs go silent instead of arguing': 'почему некоторые знаки молчат вместо спора',
-    'which signs read a tone change instantly': 'какие знаки мгновенно считывают смену тона',
-    'why overthinking gets louder when success gets close': 'почему тревожные мысли становятся громче, когда успех уже близко',
-    'the quiet ambition some people never announce': 'тихая амбиция, о которой некоторые люди никогда не говорят',
-    'why disciplined people still feel emotionally messy': 'почему даже дисциплинированные люди внутри чувствуют хаос',
-    'why repeating numbers feel louder during a life shift': 'почему повторяющиеся числа ощущаются громче в период жизненных перемен',
-    'the kind of person who waits for signs before a big move': 'тип человека, который ждет знаков перед большим шагом',
-    'why some life path numbers feel calm outside but intense inside': 'почему некоторые числа жизненного пути снаружи спокойны, а внутри очень интенсивны'
+    'zodiac signs that act fine but remember everything': 'знаки зодиака, которые делают вид, что все нормально, но помнят все'
   },
-  de: {
-    'why some people joke when they are overwhelmed': 'warum manche menschen scherzen, wenn sie überfordert sind',
-    'the habit that shows someone still cares': 'die angewohnheit, die zeigt, dass jemand sich immer noch kümmert',
-    'why silence feels louder when someone matters': 'warum stille lauter wirkt, wenn jemand wichtig ist',
-    'why some people pull away right after getting close': 'warum manche menschen sich direkt nach echter nähe zurückziehen',
-    'the quiet way someone tests if they can trust you': 'die leise art, wie jemand prüft, ob er dir vertrauen kann',
-    'when pride gets in the way of saying i miss you': 'wenn stolz im weg steht, um zu sagen ich vermisse dich',
-    'zodiac signs that act fine but remember everything': 'sternzeichen, die so tun, als wäre alles okay, aber sich an alles erinnern',
-    'why some signs go silent instead of arguing': 'warum manche sternzeichen still werden, statt zu streiten',
-    'which signs read a tone change instantly': 'welche sternzeichen einen tonwechsel sofort bemerken',
-    'why overthinking gets louder when success gets close': 'warum overthinking lauter wird, wenn erfolg näher rückt',
-    'the quiet ambition some people never announce': 'der stille ehrgeiz, den manche menschen nie offen zeigen',
-    'why disciplined people still feel emotionally messy': 'warum disziplinierte menschen sich innerlich trotzdem chaotisch fühlen',
-    'why repeating numbers feel louder during a life shift': 'warum sich wiederholende zahlen in einer lebensveränderung lauter anfühlen',
-    'the kind of person who waits for signs before a big move': 'der typ mensch, der vor einem großen schritt auf zeichen wartet',
-    'why some life path numbers feel calm outside but intense inside': 'warum manche lebenszahlen außen ruhig und innen intensiv wirken'
+  kk: {
+    'zodiac signs that act fine but remember everything': 'бәрі дұрыс сияқты көрінетін, бірақ бәрін есте сақтайтын жұлдыз белгілері'
+  }
+};
+
+const directionFallbackAngles: Record<string, Record<LanguageCode, string[]>> = {
+  'self-awareness': {
+    en: ['Silence often says more than words do.', 'When someone matters, even a pause can feel painfully loud.'],
+    ru: ['Иногда тишина говорит сильнее слов.', 'Когда человек важен, даже пауза ощущается слишком громко.'],
+    kk: ['Кейде үнсіздік сөзден де қатты әсер етеді.', 'Адам маңызды болса, кідірістің өзі ауыр сезіледі.'],
+    de: ['Manchmal sagt Stille mehr als Worte.', 'Wenn jemand wichtig ist, wirkt selbst eine Pause zu laut.'],
+    es: ['A veces el silencio dice mas que las palabras.', 'Cuando alguien importa, hasta una pausa pesa demasiado.'],
+    it: ['A volte il silenzio dice piu delle parole.', 'Quando una persona conta, anche una pausa pesa troppo.']
   },
-  es: {
-    'why some people joke when they are overwhelmed': 'por qué algunas personas hacen bromas cuando están abrumadas',
-    'the habit that shows someone still cares': 'el hábito que muestra que a alguien todavía le importas',
-    'why silence feels louder when someone matters': 'por qué el silencio se siente más fuerte cuando alguien importa',
-    'why some people pull away right after getting close': 'por qué algunas personas se alejan justo después de acercarse',
-    'the quiet way someone tests if they can trust you': 'la forma silenciosa en que alguien prueba si puede confiar en ti',
-    'when pride gets in the way of saying i miss you': 'cuando el orgullo se mete entre tú y decir te extraño',
-    'zodiac signs that act fine but remember everything': 'signos del zodiaco que parecen estar bien pero recuerdan todo',
-    'why some signs go silent instead of arguing': 'por qué algunos signos se quedan en silencio en vez de discutir',
-    'which signs read a tone change instantly': 'qué signos detectan un cambio de tono al instante',
-    'why overthinking gets louder when success gets close': 'por qué pensar demasiado se vuelve más fuerte cuando el éxito está cerca',
-    'the quiet ambition some people never announce': 'la ambición silenciosa que algunas personas nunca anuncian',
-    'why disciplined people still feel emotionally messy': 'por qué incluso las personas disciplinadas se sienten emocionalmente caóticas',
-    'why repeating numbers feel louder during a life shift': 'por qué los números repetidos se sienten más fuertes durante un cambio de vida',
-    'the kind of person who waits for signs before a big move': 'el tipo de persona que espera señales antes de un gran cambio',
-    'why some life path numbers feel calm outside but intense inside': 'por qué algunos números de camino de vida parecen tranquilos por fuera pero intensos por dentro'
+  'relationship-decoder': {
+    en: ['Some people pull away right after closeness because vulnerability scares them.', 'Distance is sometimes protection, not indifference.'],
+    ru: ['Некоторые отдаляются сразу после сближения, потому что близость их пугает.', 'Иногда дистанция — это не равнодушие, а защита.'],
+    kk: ['Кейбір адамдар жақындасқаннан кейін алыстап кетеді, өйткені осалдық оларды қорқытады.', 'Кейде қашықтық немқұрайлылық емес, қорғаныс болады.'],
+    de: ['Manche ziehen sich nach Nahe zuruck, weil Verletzlichkeit sie erschreckt.', 'Distanz ist oft Schutz und nicht Gleichgultigkeit.'],
+    es: ['Algunas personas se alejan despues de acercarse porque la vulnerabilidad las asusta.', 'A veces la distancia es proteccion, no desinteres.'],
+    it: ['Alcune persone si allontanano dopo la vicinanza perche la vulnerabilita le spaventa.', 'A volte la distanza e protezione, non indifferenza.']
   },
-  it: {
-    'why some people joke when they are overwhelmed': 'perché alcune persone scherzano quando sono sopraffatte',
-    'the habit that shows someone still cares': 'l’abitudine che fa capire che a qualcuno importa ancora',
-    'why silence feels louder when someone matters': 'perché il silenzio sembra più forte quando una persona conta davvero',
-    'why some people pull away right after getting close': 'perché alcune persone si allontanano subito dopo essersi avvicinate',
-    'the quiet way someone tests if they can trust you': 'il modo silenzioso in cui qualcuno capisce se può fidarsi di te',
-    'when pride gets in the way of saying i miss you': 'quando l’orgoglio si mette in mezzo al dire mi manchi',
-    'zodiac signs that act fine but remember everything': 'segni zodiacali che fanno finta di stare bene ma ricordano tutto',
-    'why some signs go silent instead of arguing': 'perché alcuni segni si chiudono nel silenzio invece di discutere',
-    'which signs read a tone change instantly': 'quali segni colgono subito un cambio di tono',
-    'why overthinking gets louder when success gets close': 'perché i pensieri diventano più forti quando il successo si avvicina',
-    'the quiet ambition some people never announce': 'l’ambizione silenziosa che alcune persone non annunciano mai',
-    'why disciplined people still feel emotionally messy': 'perché anche le persone disciplinate si sentono emotivamente in disordine',
-    'why repeating numbers feel louder during a life shift': 'perché i numeri ripetuti sembrano più forti durante un cambiamento di vita',
-    'the kind of person who waits for signs before a big move': 'il tipo di persona che aspetta segnali prima di fare un grande passo',
-    'why some life path numbers feel calm outside but intense inside': 'perché alcuni numeri del percorso di vita sembrano calmi fuori ma intensi dentro'
+  'zodiac-energy': {
+    en: ['Some signs stay quiet, but they keep every detail inside.', 'What looks calm on the outside can be intense underneath.'],
+    ru: ['Некоторые знаки молчат, но внутри запоминают каждую деталь.', 'То, что снаружи выглядит спокойно, внутри может быть очень сильным.'],
+    kk: ['Кейбір белгілер үндемейді, бірақ іштей бәрін сақтап қояды.', 'Сырттай тыныш көрінген нәрсе іштей өте күшті болуы мүмкін.'],
+    de: ['Manche Zeichen schweigen, behalten aber jedes Detail in sich.', 'Was aussen ruhig wirkt, kann innen sehr intensiv sein.'],
+    es: ['Algunos signos callan, pero por dentro guardan cada detalle.', 'Lo que parece calma por fuera puede ser intensidad por dentro.'],
+    it: ['Alcuni segni restano in silenzio, ma dentro si tengono ogni dettaglio.', 'Cio che sembra calma fuori puo essere intensita dentro.']
+  },
+  'mindset-patterns': {
+    en: ['Overthinking often gets louder right before a real change.', 'The closer the shift, the harder the mind tries to control it.'],
+    ru: ['Тревожные мысли часто усиливаются прямо перед реальными переменами.', 'Чем ближе сдвиг, тем сильнее ум пытается все контролировать.'],
+    kk: ['Мазасыз ойлар көбіне үлкен өзгерістің алдында күшейеді.', 'Өзгеріс жақындаған сайын ақыл бәрін бақылауға тырысады.'],
+    de: ['Overthinking wird oft kurz vor echten Veranderungen lauter.', 'Je naher die Wende, desto starker will der Kopf alles kontrollieren.'],
+    es: ['Pensar demasiado suele hacerse mas fuerte antes de un cambio real.', 'Cuanto mas cerca esta el giro, mas intenta la mente controlarlo todo.'],
+    it: ['I pensieri pesanti diventano piu forti proprio prima di un vero cambiamento.', 'Piu il cambio si avvicina, piu la mente prova a controllare tutto.']
+  },
+  'numerology-vibes': {
+    en: ['Repeating numbers often hit harder when life feels unstable.', 'People notice patterns most when they are already searching for meaning.'],
+    ru: ['Повторяющиеся числа сильнее цепляют именно в нестабильный период.', 'Люди чаще замечают знаки, когда уже ищут смысл и опору.'],
+    kk: ['Қайталанатын сандар көбіне тұрақсыз кезеңде қаттырақ әсер етеді.', 'Адам мағына іздеген кезде белгілерді көбірек байқай бастайды.'],
+    de: ['Wiederkehrende Zahlen treffen oft dann starker, wenn das Leben instabil wirkt.', 'Menschen sehen Muster vor allem dann, wenn sie schon nach Sinn suchen.'],
+    es: ['Los numeros repetidos pegan mas cuando la vida se siente inestable.', 'La gente nota patrones justo cuando ya esta buscando sentido.'],
+    it: ['I numeri ripetuti colpiscono di piu quando la vita sembra instabile.', 'Le persone vedono piu segnali quando stanno gia cercando un senso.']
   }
 };
 
 const localizedFallbacks: Record<LanguageCode, {
-  hook: (topic: string) => string;
+  hook: string;
   body: string[];
-  description: (topic: string, direction: string) => string;
+  description: (direction: string) => string;
 }> = {
   en: {
-    hook: (topic) => `Sometimes "${topic}" hits harder than it looks at first.`,
+    hook: 'Some people look calm, but they remember every shift in energy.',
     body: [
-      'It starts like a small observation, then turns into something instantly recognizable.',
-      'Short lines, quick pacing, and one emotional detail keep the Short moving.'
+      'They may say nothing in the moment, then replay one look or one phrase for hours.',
+      'What feels like distance is often just a very sharp emotional memory.'
     ],
-    description: (topic, direction) => `${topic}. Built for ${direction}.`
+    description: (direction) => `Short spoken script for ${direction}.`
   },
   ru: {
-    hook: (topic) => `Иногда тема "${topic}" цепляет сильнее, чем кажется сначала.`,
+    hook: 'Некоторые делают вид, что все нормально, но внутри запоминают каждую мелочь.',
     body: [
-      'Сначала это выглядит как мелочь, но именно такие детали зритель узнает в себе.',
-      'Фразы короткие, ритм быстрый, а смысл держится на одном точном наблюдении.'
+      'Они могут промолчать сразу, но потом долго прокручивают в голове один взгляд или одну фразу.',
+      'Со стороны это кажется холодом, хотя на деле человек просто чувствует глубже, чем показывает.'
     ],
-    description: (topic, direction) => `${topic}. Собрано для направления ${direction}.`
+    description: (direction) => `Короткий разговорный текст для направления ${direction}.`
+  },
+  kk: {
+    hook: 'Кейбір адамдар сырттай сабырлы көрінеді, бірақ іштей бәрін есте сақтайды.',
+    body: [
+      'Олар сол сәтте үндемей қалуы мүмкін, бірақ кейін бір сөзді қайта-қайта ойлайды.',
+      'Сырттай суық көрінгенімен, шын мәнінде олар бәрін тереңірек сезеді.'
+    ],
+    description: (direction) => `${direction} бағытына арналған қысқа ауызекі мәтін.`
   },
   de: {
-    hook: (topic) => `Manchmal trifft "${topic}" stärker, als es zuerst wirkt.`,
+    hook: 'Manche wirken ruhig, merken sich aber jede kleine Veranderung.',
     body: [
-      'Es beginnt wie eine kleine Beobachtung und fühlt sich dann sofort vertraut an.',
-      'Kurze Sätze, schnelles Tempo und ein emotionales Detail halten den Short zusammen.'
+      'Sie sagen erst mal nichts, denken aber spater lange uber einen Blick oder einen Ton nach.',
+      'Was kalt wirkt, ist oft einfach ein sehr feines emotionales Gedachtnis.'
     ],
-    description: (topic, direction) => `${topic}. Erstellt für ${direction}.`
+    description: (direction) => `Kurzer gesprochener Text fur ${direction}.`
   },
   es: {
-    hook: (topic) => `A veces "${topic}" pega más fuerte de lo que parece al principio.`,
+    hook: 'Hay personas que parecen tranquilas, pero recuerdan cada pequeno detalle.',
     body: [
-      'Empieza como una observación pequeña y de pronto se siente demasiado reconocible.',
-      'Frases cortas, ritmo rápido y un detalle emocional sostienen el Short.'
+      'Tal vez no digan nada en el momento, pero despues repasan una mirada o una frase por horas.',
+      'Lo que parece frialdad a veces es sensibilidad que no se muestra.'
     ],
-    description: (topic, direction) => `${topic}. Hecho para ${direction}.`
+    description: (direction) => `Texto corto y hablado para ${direction}.`
   },
   it: {
-    hook: (topic) => `A volte "${topic}" colpisce più forte di quanto sembri all'inizio.`,
+    hook: 'Alcune persone sembrano tranquille, ma dentro si ricordano tutto.',
     body: [
-      'Parte come una piccola osservazione e poi diventa subito fin troppo riconoscibile.',
-      'Frasi corte, ritmo veloce e un dettaglio emotivo tengono insieme lo Short.'
+      'Magari non dicono nulla subito, pero poi ripensano per ore a uno sguardo o a una frase.',
+      'Quella che sembra freddezza spesso e solo sensibilita trattenuta.'
     ],
-    description: (topic, direction) => `${topic}. Creato per ${direction}.`
+    description: (direction) => `Testo breve e parlato per ${direction}.`
   }
 };
 
 function repairMojibake(value: string) {
   const text = String(value || '');
-  return /Ãƒ.|Ã.|Ã‘./.test(text)
+  return /ÃƒÆ’.|ÃƒÂ.|Ãƒâ€˜./.test(text)
     ? Buffer.from(text, 'latin1').toString('utf8')
     : text;
 }
@@ -198,7 +188,8 @@ function looksTooEnglish(value: string, language: LanguageCode) {
     'short lines',
     'built for',
     'save this',
-    'hits harder'
+    'in this video',
+    'this topic'
   ].some((marker) => text.includes(marker));
 }
 
@@ -206,68 +197,121 @@ function isMostlyAscii(value: string) {
   return /^[\x00-\x7F\s"'!?.,:;()/\-]+$/.test(value.trim());
 }
 
-function normalizeLocalizedScript(
-  script: ScriptPackage,
-  direction: Direction,
-  topic: string,
-  localizedTopic: string,
-  language: LanguageCode
-): ScriptPackage {
+function titleFromHook(hook: string) {
+  return String(hook || '')
+    .replace(/[.!?]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getDirectionalLines(direction: Direction, language: LanguageCode) {
+  return directionFallbackAngles[direction.id]?.[language]
+    || directionFallbackAngles[direction.id]?.en
+    || localizedFallbacks[language].body;
+}
+
+function getTopicSpecificLines(topic: string, language: LanguageCode) {
+  const normalized = topic.toLowerCase();
+  const lines: Array<{ match: string[]; text: Record<LanguageCode, string[]> }> = [
+    {
+      match: ['joke', 'overwhelmed'],
+      text: {
+        en: ['Some people start joking right when they are barely holding it together.', 'Humor can be the fastest way to hide panic before anyone notices.'],
+        ru: ['Некоторые начинают шутить именно в тот момент, когда внутри уже слишком тяжело.', 'Юмор часто становится самым быстрым способом спрятать тревогу, пока ее никто не заметил.'],
+        kk: ['Кейбір адамдар іште бәрі ауырлап кеткенде дәл сол сәтте қалжыңдай бастайды.', 'Әзіл кейде мазасыздықты жасырудың ең жылдам тәсіліне айналады.'],
+        de: ['Manche fangen genau dann an zu scherzen, wenn innen schon alles zu viel wird.', 'Humor ist oft der schnellste Weg, innere Unruhe zu verstecken.'],
+        es: ['Algunas personas empiezan a bromear justo cuando por dentro ya no pueden mas.', 'El humor suele ser la forma mas rapida de esconder la ansiedad.'],
+        it: ['Alcune persone iniziano a scherzare proprio quando dentro stanno cedendo.', 'L umorismo spesso e il modo piu veloce per nascondere l ansia.']
+      }
+    },
+    {
+      match: ['silence', 'matters'],
+      text: {
+        en: ['Silence gets louder when the person matters more than we want to admit.', 'A pause can hurt because the mind fills it with meaning.'],
+        ru: ['Тишина становится громче, когда человек значит больше, чем хочется признать.', 'Пауза ранит сильнее, потому что мозг сам заполняет ее смыслом.'],
+        kk: ['Адам шынымен маңызды болса, үнсіздік бұрынғыдан да қатты сезіледі.', 'Кідіріс ауыр тиеді, өйткені оның орнын ой өздігінен толтырады.'],
+        de: ['Stille wird lauter, wenn die Person wichtiger ist, als man zugeben will.', 'Eine Pause schmerzt mehr, weil der Kopf sie selbst mit Bedeutung fullt.'],
+        es: ['El silencio pesa mas cuando esa persona importa mas de lo que admitimos.', 'Una pausa duele porque la mente la llena de significado.'],
+        it: ['Il silenzio pesa di piu quando quella persona conta piu di quanto vogliamo ammettere.', 'Una pausa fa male perche la mente la riempie di significato.']
+      }
+    },
+    {
+      match: ['pull away', 'close'],
+      text: {
+        en: ['Some people pull away right after closeness because real intimacy scares them.', 'Distance can look cold, even when it starts from fear rather than indifference.'],
+        ru: ['Некоторые отдаляются сразу после сближения, потому что настоящая близость их пугает.', 'Со стороны это выглядит холодно, хотя внутри там чаще страх, а не равнодушие.'],
+        kk: ['Кейбір адамдар жақындасқаннан кейін алыстап кетеді, өйткені шынайы жақындық оларды қорқытады.', 'Сырттай бұл суықтық сияқты көрінеді, бірақ ішінде көбіне қорқыныш жатады.'],
+        de: ['Manche ziehen sich nach Nahe zuruck, weil echte Intimitat ihnen Angst macht.', 'Von aussen wirkt das kalt, obwohl dahinter oft Angst und nicht Gleichgultigkeit steckt.'],
+        es: ['Algunas personas se alejan justo despues de acercarse porque la intimidad real las asusta.', 'Por fuera parece frialdad, pero muchas veces es miedo y no desinteres.'],
+        it: ['Alcune persone si allontanano subito dopo la vicinanza perche la vera intimita le spaventa.', 'Da fuori sembra freddezza, ma spesso sotto c e paura e non indifferenza.']
+      }
+    },
+    {
+      match: ['silent', 'arguing'],
+      text: {
+        en: ['Some signs go quiet instead of arguing because they shut down before they explode.', 'Silence is not always calm. Sometimes it is pressure with no safe exit.'],
+        ru: ['Некоторые знаки замолкают вместо спора, потому что закрываются раньше, чем сорвутся.', 'Молчание — это не всегда спокойствие. Иногда это просто напряжение без безопасного выхода.'],
+        kk: ['Кейбір белгілер дауласпай, үнсіз қалады, өйткені жарылардың алдында ішке жабылып кетеді.', 'Үнсіздік әрдайым тыныштық емес. Кейде ол — шығатын жолы жоқ қысым.'],
+        de: ['Manche Zeichen werden still statt zu streiten, weil sie sich verschliessen, bevor sie explodieren.', 'Stille ist nicht immer Ruhe. Manchmal ist sie Druck ohne sicheren Ausgang.'],
+        es: ['Algunos signos se callan en vez de discutir porque se cierran antes de explotar.', 'El silencio no siempre es calma. A veces es presion sin salida segura.'],
+        it: ['Alcuni segni tacciono invece di discutere perche si chiudono prima di esplodere.', 'Il silenzio non e sempre calma. A volte e solo pressione senza sfogo.']
+      }
+    }
+  ];
+
+  for (const item of lines) {
+    if (item.match.every((token) => normalized.includes(token))) {
+      return item.text[language] || item.text.en;
+    }
+  }
+
+  return null;
+}
+
+function normalizeGeneratedScript(script: ScriptPackage, direction: Direction, topic: string, localizedTopic: string, language: LanguageCode) {
   const localizedTitle = localizedTopic[0]?.toUpperCase() + localizedTopic.slice(1);
-  const repaired: ScriptPackage = {
+  const repairedHook = repairMojibake(script.hook);
+  const repairedBody = script.body.map(repairMojibake);
+  const repairedCta = repairMojibake(script.cta);
+  const repairedTitle = repairMojibake(script.title);
+  const repairedDescription = repairMojibake(script.description);
+
+  const hook = makeSpeechFriendlyLine(removeDirectTopicMention(repairedHook, topic, localizedTitle));
+  const body = repairedBody
+    .map((line) => makeSpeechFriendlyLine(removeDirectTopicMention(line, topic, localizedTitle)))
+    .filter(Boolean)
+    .slice(0, 2);
+  const cta = makeSpeechFriendlyLine(repairedCta);
+  const titleLooksEnglish = looksTooEnglish(repairedTitle, language)
+    || repairedTitle.trim().toLowerCase() === topic.trim().toLowerCase()
+    || (language !== 'en' && isMostlyAscii(repairedTitle));
+  const fallbackTitle = titleFromHook(hook) || localizedTitle;
+
+  return {
     ...script,
     language,
     direction: direction.id,
     topic,
-    hook: repairMojibake(script.hook),
-    body: script.body.map(repairMojibake),
-    cta: repairMojibake(script.cta),
-    voiceoverText: repairMojibake(script.voiceoverText),
-    onScreenText: script.onScreenText.map(repairMojibake),
-    title: repairMojibake(script.title),
-    description: repairMojibake(script.description)
-  };
-
-  if (
-    looksTooEnglish(repaired.hook, language)
-    || looksTooEnglish(repaired.body.join(' '), language)
-    || looksTooEnglish(repaired.description, language)
-  ) {
-    const fallback = localizedFallbacks[language];
-    const cta = CTA_FALLBACK[language];
-    return {
-      ...repaired,
-      hook: fallback.hook(localizedTopic),
-      body: fallback.body,
-      cta,
-      voiceoverText: [fallback.hook(localizedTopic), ...fallback.body, cta].join(' '),
-      onScreenText: [fallback.hook(localizedTopic), ...fallback.body],
-      title: localizedTitle,
-      description: fallback.description(topic, direction.name)
-    };
-  }
-
-  const titleLooksEnglish = looksTooEnglish(repaired.title, language)
-    || repaired.title.trim().toLowerCase() === topic.trim().toLowerCase()
-    || (language !== 'en' && isMostlyAscii(repaired.title));
-
-  return {
-    ...repaired,
-    title: titleLooksEnglish ? localizedTitle : repaired.title
+    hook,
+    body,
+    cta,
+    voiceoverText: formatVoiceoverForSpeech([hook, ...body, cta].join(' ')),
+    onScreenText: [hook, ...body].slice(0, 3),
+    title: titleLooksEnglish ? fallbackTitle : repairedTitle,
+    description: repairedDescription
   };
 }
 
-function fallbackScript(
-  direction: Direction,
-  topic: string,
-  localizedTopic: string,
-  language: LanguageCode,
-  durationSeconds: number
-): ScriptPackage {
+function fallbackScript(direction: Direction, topic: string, localizedTopic: string, language: LanguageCode, durationSeconds: number): ScriptPackage {
   const fallback = localizedFallbacks[language];
+  const directionalLines = getTopicSpecificLines(topic, language) || getDirectionalLines(direction, language);
   const cta = CTA_FALLBACK[language];
-  const hook = fallback.hook(localizedTopic);
-  const body = fallback.body;
+  const hookBase = directionalLines[0] || fallback.hook;
+  const bodyBase = directionalLines.slice(1, 3);
+  const hook = makeSpeechFriendlyLine(removeDirectTopicMention(hookBase, topic, localizedTopic));
+  const body = bodyBase.length > 0
+    ? bodyBase.map((line) => makeSpeechFriendlyLine(removeDirectTopicMention(line, topic, localizedTopic)))
+    : fallback.body.map((line) => makeSpeechFriendlyLine(removeDirectTopicMention(line, topic, localizedTopic)));
 
   return {
     language,
@@ -277,10 +321,10 @@ function fallbackScript(
     hook,
     body,
     cta,
-    voiceoverText: `${hook} ${body.join(' ')} ${cta}`,
-    onScreenText: [hook, ...body],
-    title: localizedTopic[0].toUpperCase() + localizedTopic.slice(1),
-    description: fallback.description(topic, direction.name),
+    voiceoverText: formatVoiceoverForSpeech(`${hook} ${body.join(' ')} ${cta}`),
+    onScreenText: [hook, ...body].slice(0, 3),
+    title: titleFromHook(hook) || (localizedTopic[0]?.toUpperCase() + localizedTopic.slice(1)),
+    description: fallback.description(direction.name),
     tags: ['shorts', direction.category, language, 'yt-vid']
   };
 }
@@ -292,12 +336,17 @@ export async function generateScript(direction: Direction, topic: string, langua
     'Create a native short-form script for a YouTube Short.',
     `Direction: ${direction.name}`,
     `Original topic: ${topic}`,
-    `Localized topic to use in the script: ${localizedTopic}`,
+    `Localized topic for title and metadata: ${localizedTopic}`,
     `Language: ${language}`,
-    `Duration seconds: ${durationSeconds}`,
+    `Target duration seconds: ${durationSeconds}`,
     `Everything except the "direction" id must be written in ${language}.`,
     'Do not answer in English unless language=en.',
-    'Style: natural, short phrases, entertainment + self-reflection, no AI-generic tone.',
+    'Write like a human speaking naturally on camera.',
+    'Do not repeat the full topic or title in the hook or body.',
+    'Start directly with the emotional observation, not with meta phrases.',
+    'Never write self-referential lines like "this topic", "short lines", "fast rhythm", "in this video".',
+    'Use 1 hook, 2 short body lines, and 1 CTA.',
+    'The CTA should be short and sound natural out loud.',
     'Return {"language","direction","topic","durationSeconds","hook","body","cta","voiceoverText","onScreenText","title","description","tags"}.'
   ].join('\n');
 
@@ -320,5 +369,5 @@ export async function generateScript(direction: Direction, topic: string, langua
       appName: config.openrouter.appName
     }));
 
-  return normalizeLocalizedScript(generated, direction, topic, localizedTopic, language);
+  return normalizeGeneratedScript(generated, direction, topic, localizedTopic, language);
 }

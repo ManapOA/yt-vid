@@ -11,7 +11,7 @@ function fitTitleSize(text: string) {
 
 function getSceneWindow(durationInFrames: number, count: number) {
   const safeCount = Math.max(1, count);
-  return Math.max(70, Math.floor(durationInFrames / safeCount));
+  return Math.max(30, Math.floor(durationInFrames / safeCount));
 }
 
 export function YtVidShort({
@@ -30,11 +30,12 @@ export function YtVidShort({
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const titleSize = fitTitleSize(script.title);
-  const sceneWindow = getSceneWindow(durationInFrames, Math.min(3, design.scenes.length));
+  const visualLines = script.onScreenText.slice(0, 3);
+  const sceneWindow = getSceneWindow(durationInFrames, Math.max(1, visualLines.length));
   const glow = interpolate(frame, [0, durationInFrames * 0.4, durationInFrames], [0.14, 0.26, 0.18], {
     easing: Easing.out(Easing.cubic)
   });
-  const titleSpring = spring({ fps, frame, config: { damping: 16, stiffness: 92 } });
+  const titleSpring = spring({ fps, frame, config: { damping: 18, stiffness: 150 } });
   const titleTranslate = interpolate(titleSpring, [0, 1], [44, 0]);
   const titleOpacity = interpolate(titleSpring, [0, 1], [0, 1]);
   const progress = interpolate(frame, [0, durationInFrames - 1], [0.06, 1], { extrapolateRight: 'clamp' });
@@ -83,18 +84,17 @@ export function YtVidShort({
           style={{
             position: 'relative',
             marginTop: 54,
-            height: 570,
+            height: 500,
             overflow: 'hidden'
           }}
         >
-          {design.scenes.slice(0, 3).map((scene, index) => (
-            <SceneCard
-              accent={scene.accent}
+          {visualLines.map((line, index) => (
+            <SceneSubtitle
               fps={fps}
               frame={frame}
-              key={scene.id}
+              key={`${line}-${index}`}
               sceneIndex={index}
-              text={scene.text}
+              text={line}
               windowSize={sceneWindow}
             />
           ))}
@@ -122,14 +122,13 @@ export function YtVidShort({
 
           <div
             style={{
-              display: 'flex',
-              gap: 10,
-              flexWrap: 'wrap',
+              display: 'grid',
+              gap: 8,
               alignItems: 'flex-start'
             }}
           >
-            {script.onScreenText.slice(0, 3).map((item, index) => (
-              <AnimatedChip frame={frame} fps={fps} index={index} key={`${item}-${index}`} text={item} />
+            {visualLines.map((item, index) => (
+              <AnimatedCaptionLine frame={frame} fps={fps} index={index} key={`${item}-${index}`} text={item} />
             ))}
           </div>
 
@@ -151,37 +150,34 @@ export function YtVidShort({
   );
 }
 
-function SceneCard({
+function SceneSubtitle({
   text,
   frame,
   fps,
-  accent,
   sceneIndex,
   windowSize
 }: {
   text: string;
   frame: number;
   fps: number;
-  accent: boolean;
   sceneIndex: number;
   windowSize: number;
 }) {
   const localFrame = frame - sceneIndex * windowSize;
-  const enter = spring({ fps, frame: localFrame, config: { damping: 18, stiffness: 120 } });
-  const exitStart = Math.max(18, windowSize - 22);
+  const enter = spring({ fps, frame: localFrame, config: { damping: 20, stiffness: 170 } });
+  const exitStart = Math.max(12, windowSize - 16);
   const exitProgress = interpolate(localFrame, [exitStart, windowSize], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp'
   });
-  const enterOpacity = interpolate(enter, [0, 1], [0, accent ? 1 : 0.9]);
+  const enterOpacity = interpolate(enter, [0, 1], [0, 1]);
   const opacity = interpolate(exitProgress, [0, 1], [enterOpacity, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp'
   });
-  const translateYIn = interpolate(enter, [0, 1], [28, 0]);
-  const translateYOut = interpolate(exitProgress, [0, 1], [0, -16]);
-  const scaleIn = interpolate(enter, [0, 1], [0.965, 1]);
-  const scaleOut = interpolate(exitProgress, [0, 1], [1, 0.985]);
+  const translateYIn = interpolate(enter, [0, 1], [24, 0]);
+  const translateYOut = interpolate(exitProgress, [0, 1], [0, -12]);
+  const letterSpacing = interpolate(enter, [0, 1], [1.8, 0.2]);
 
   if (localFrame < -18 || localFrame > windowSize) {
     return null;
@@ -193,27 +189,23 @@ function SceneCard({
         position: 'absolute',
         inset: 0,
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: 'flex-end',
+        justifyContent: 'flex-start',
         pointerEvents: 'none',
-        opacity
+        opacity,
+        paddingBottom: 26
       }}
     >
       <div
         style={{
-          padding: '26px 28px',
-          borderRadius: 30,
-          width: '100%',
-          maxWidth: 880,
-          maxHeight: 500,
-          overflow: 'hidden',
-          fontSize: 34,
-          lineHeight: 1.12,
-          fontWeight: 600,
-          background: accent ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.12)',
-          color: accent ? '#231916' : 'white',
-          transform: `translateY(${translateYIn + translateYOut}px) scale(${scaleIn * scaleOut})`,
-          boxShadow: accent ? '0 18px 42px rgba(0,0,0,0.18)' : '0 12px 34px rgba(0,0,0,0.14)'
+          maxWidth: 900,
+          fontSize: 38,
+          lineHeight: 1.08,
+          fontWeight: 700,
+          letterSpacing,
+          color: 'rgba(255,255,255,0.98)',
+          textShadow: '0 10px 30px rgba(0,0,0,0.42)',
+          transform: `translateY(${translateYIn + translateYOut}px)`
         }}
       >
         {text}
@@ -222,7 +214,7 @@ function SceneCard({
   );
 }
 
-function AnimatedChip({
+function AnimatedCaptionLine({
   text,
   frame,
   fps,
@@ -233,23 +225,24 @@ function AnimatedChip({
   fps: number;
   index: number;
 }) {
-  const localFrame = frame - index * 8;
-  const enter = spring({ fps, frame: localFrame, config: { damping: 18, stiffness: 120 } });
+  const localFrame = frame - index * 4;
+  const enter = spring({ fps, frame: localFrame, config: { damping: 20, stiffness: 170 } });
   const opacity = interpolate(enter, [0, 1], [0, 1]);
-  const translateY = interpolate(enter, [0, 1], [16, 0]);
+  const translateY = interpolate(enter, [0, 1], [18, 0]);
+  const scaleX = interpolate(enter, [0, 1], [0.92, 1]);
 
   return (
     <span
       style={{
-        padding: '10px 14px',
-        borderRadius: 999,
-        border: '1px solid rgba(255,255,255,0.15)',
-        background: 'rgba(255,255,255,0.08)',
         fontSize: 18,
         lineHeight: 1.15,
-        maxWidth: 520,
+        maxWidth: 620,
+        paddingLeft: 14,
+        borderLeft: '2px solid rgba(255,255,255,0.46)',
         opacity,
-        transform: `translateY(${translateY}px)`
+        transform: `translateY(${translateY}px) scaleX(${scaleX})`,
+        transformOrigin: 'left center',
+        color: 'rgba(255,255,255,0.92)'
       }}
     >
       {text}

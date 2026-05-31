@@ -27,6 +27,25 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## Auto Video Factory
+
+The app now includes an Auto Video Factory mode:
+
+1. Pick a niche or `random`.
+2. Pick a language.
+3. Click `Generate Auto Video`.
+4. The server generates topic, material, poster facts, voiceover, captions, music-backed render, and saves the result into `output/runs/<runId>/`.
+
+Artifacts saved for auto runs:
+
+- `material.json`
+- `poster.json`
+- `voiceover.json`
+- `render-input.json`
+- `youtube-metadata.json`
+- `run-manifest.json`
+- `video.mp4`
+
 ## Env Variables
 
 - `PORT`
@@ -44,6 +63,7 @@ Open `http://localhost:3000`.
 - `CARTESIA_VERSION`
 - `CARTESIA_VOICE_ID_EN`
 - `CARTESIA_VOICE_ID_RU`
+- `CARTESIA_VOICE_ID_KK`
 - `CARTESIA_VOICE_ID_DE`
 - `CARTESIA_VOICE_ID_ES`
 - `CARTESIA_VOICE_ID_IT`
@@ -114,6 +134,8 @@ output/
 - `POST /api/voiceover/create`
 - `POST /api/video/render`
 - `POST /api/agent/create-video`
+- `POST /api/runs/auto`
+- `GET /api/runs/:runId`
 - `GET /api/hermes/memory`
 - `POST /api/hermes/fix-note`
 - `POST /api/hermes/check-run`

@@ -34,6 +34,7 @@ export const config = {
     voices: {
       en: process.env.CARTESIA_VOICE_ID_EN || '',
       ru: process.env.CARTESIA_VOICE_ID_RU || '',
+      kk: process.env.CARTESIA_VOICE_ID_KK || '',
       de: process.env.CARTESIA_VOICE_ID_DE || '',
       es: process.env.CARTESIA_VOICE_ID_ES || '',
       it: process.env.CARTESIA_VOICE_ID_IT || ''

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-export const languageCodeSchema = z.enum(['en', 'ru', 'de', 'es', 'it']);
+export const languageCodeSchema = z.enum(['en', 'ru', 'de', 'es', 'it', 'kk']);
+export const autoDirectionSchema = z.enum(['psychology', 'relationships', 'zodiac', 'mindset', 'numerology', 'random']);
 
 export const topicCandidateSchema = z.object({
   topic: z.string().min(3),
@@ -30,4 +31,35 @@ export const scriptSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   tags: z.array(z.string().min(1)).min(1)
+});
+
+export const autoMaterialSchema = z.object({
+  topic: z.string().min(3),
+  poster: z.object({
+    title: z.string().min(3),
+    facts: z.array(z.string().min(3)).min(2).max(3)
+  }),
+  voiceover: z.object({
+    text: z.string().min(10),
+    cta: z.string().min(3)
+  }),
+  onScreenText: z.array(z.string().min(2)).min(2).max(4),
+  youtube: z.object({
+    title: z.string().min(3),
+    description: z.string().min(3),
+    tags: z.array(z.string().min(2)).min(1)
+  }),
+  rules: z.object({
+    maxDurationSec: z.number().int().positive().max(30),
+    ctaOnlyInVoice: z.literal(true),
+    language: languageCodeSchema
+  })
+});
+
+export const autoVideoRequestSchema = z.object({
+  direction: autoDirectionSchema,
+  language: languageCodeSchema,
+  count: z.number().int().positive().max(1).optional(),
+  voiceover: z.boolean().default(true),
+  durationSec: z.number().int().positive().max(30).default(30)
 });

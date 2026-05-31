@@ -1,33 +1,25 @@
 import type { ScriptPackage } from '../../shared/types';
-
-function trimText(value: string) {
-  return String(value || '')
-    .replace(/\s+/g, ' ')
-    .replace(/\s+([,.!?])/g, '$1')
-    .trim();
-}
-
-function humanizeLine(value: string) {
-  return trimText(value)
-    .replace(/\btherefore\b/gi, 'so')
-    .replace(/\bmoreover\b/gi, 'and')
-    .replace(/\bin conclusion\b/gi, 'so here is the point');
-}
+import { formatVoiceoverForSpeech, makeSpeechFriendlyLine, removeDirectTopicMention } from './speech';
 
 export function humanizeScript(script: ScriptPackage): ScriptPackage {
-  const body = script.body.map(humanizeLine).map((line) => line.length > 110 ? line.slice(0, 107).trimEnd() + '...' : line);
-  const hook = humanizeLine(script.hook);
-  const cta = humanizeLine(script.cta);
-  const onScreenText = [hook, ...body];
+  const cleanedHook = makeSpeechFriendlyLine(removeDirectTopicMention(script.hook, script.topic, script.title));
+  const body = script.body
+    .map((line) => makeSpeechFriendlyLine(removeDirectTopicMention(line, script.topic, script.title)))
+    .filter(Boolean)
+    .map((line) => line.length > 110 ? line.slice(0, 107).trimEnd() + '...' : line);
+  const hook = cleanedHook.length > 8 ? cleanedHook : makeSpeechFriendlyLine(script.title);
+  const cta = makeSpeechFriendlyLine(script.cta);
+  const onScreenText = [hook, ...body].slice(0, 3);
+  const voiceoverText = formatVoiceoverForSpeech([hook, ...body, cta].join(' '));
 
   return {
     ...script,
     hook,
     body,
     cta,
-    voiceoverText: [hook, ...body, cta].join(' '),
+    voiceoverText,
     onScreenText,
-    title: trimText(script.title),
-    description: trimText(script.description)
+    title: String(script.title || '').replace(/\s+/g, ' ').trim(),
+    description: String(script.description || '').replace(/\s+/g, ' ').trim()
   };
 }

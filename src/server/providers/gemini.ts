@@ -1,3 +1,5 @@
+import { parseStructuredJson } from './json';
+
 export async function generateWithGemini<T>({
   prompt,
   fallback,
@@ -35,7 +37,7 @@ export async function generateWithGemini<T>({
   const text = payload?.candidates?.[0]?.content?.parts?.map((item: { text?: string }) => item.text || '').join('') || '';
 
   try {
-    return schema.parse(JSON.parse(text));
+    return parseStructuredJson(text, schema);
   } catch {
     return fallback;
   }

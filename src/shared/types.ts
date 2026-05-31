@@ -1,4 +1,12 @@
-export type LanguageCode = 'en' | 'ru' | 'de' | 'es' | 'it';
+export type LanguageCode = 'en' | 'ru' | 'de' | 'es' | 'it' | 'kk';
+
+export type AutoDirectionId =
+  | 'psychology'
+  | 'relationships'
+  | 'zodiac'
+  | 'mindset'
+  | 'numerology'
+  | 'random';
 
 export type RuleSeverity = 'low' | 'medium' | 'high' | 'critical';
 
@@ -10,6 +18,7 @@ export type Direction = {
   style: string;
   color: string;
   category: string;
+  autoCategory?: Exclude<AutoDirectionId, 'random'>;
   topicSeeds: string[];
 };
 
@@ -89,6 +98,7 @@ export type VoiceArtifact = {
   fileName: string;
   relativePath: string;
   bytes: number;
+  durationSec?: number;
 };
 
 export type YouTubePackage = {
@@ -96,6 +106,76 @@ export type YouTubePackage = {
   description: string;
   tags: string[];
   fileName: string;
+};
+
+export type AutoPoster = {
+  title: string;
+  facts: string[];
+};
+
+export type AutoVoiceover = {
+  text: string;
+  cta: string;
+};
+
+export type AutoMaterial = {
+  topic: string;
+  poster: AutoPoster;
+  voiceover: AutoVoiceover;
+  onScreenText: string[];
+  youtube: {
+    title: string;
+    description: string;
+    tags: string[];
+  };
+  rules: {
+    maxDurationSec: number;
+    ctaOnlyInVoice: boolean;
+    language: LanguageCode;
+  };
+};
+
+export type AutoVideoRequest = {
+  direction: AutoDirectionId;
+  language: LanguageCode;
+  count?: number;
+  voiceover: boolean;
+  durationSec: number;
+};
+
+export type AutoVideoResult = {
+  runId: string;
+  status: 'queued' | 'completed' | 'failed';
+  videoPath: string;
+  artifacts: {
+    material: string;
+    poster: string;
+    metadata: string;
+    manifest: string;
+    voiceover: string;
+    renderInput: string;
+  };
+  summary: {
+    topic: string;
+    poster: AutoPoster;
+    voiceover: AutoVoiceover;
+    onScreenText: string[];
+  };
+};
+
+export type AutoVideoManifest = {
+  mode: 'auto';
+  runId: string;
+  createdAt: string;
+  request: AutoVideoRequest;
+  resolvedDirectionId: string;
+  resolvedDirectionName: string;
+  topic: string;
+  language: LanguageCode;
+  durationSec: number;
+  hasVoiceover: boolean;
+  videoPath: string;
+  artifacts: Record<string, string>;
 };
 
 export type HermesRule = {
@@ -121,7 +201,9 @@ export type RunRecord = {
   languages: LanguageCode[];
   outputDir: string;
   hasVoiceover: boolean;
-  renderStatus: 'pending' | 'completed' | 'blocked';
+  renderStatus: 'pending' | 'completed' | 'blocked' | 'failed';
+  mode?: 'manual' | 'auto';
+  errorMessage?: string | null;
   artifacts: Record<string, string>;
   youtubePackage: YouTubePackage;
 };

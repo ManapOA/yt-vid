@@ -11,6 +11,9 @@ export const RemotionRoot: React.FC = () => {
       height={1920}
       fps={30}
       durationInFrames={600}
+      calculateMetadata={({ props }) => ({
+        durationInFrames: Math.ceil(Math.min(30, Math.max(3, Number(props.script?.durationSeconds || 8))) * 30)
+      })}
       defaultProps={{
         script: {
           language: 'en',

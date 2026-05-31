@@ -5,5 +5,47 @@
     "rule": "If voiceover is enabled, CTA must not be rendered as a separate on-screen CTA block.",
     "reason": "CTA is already spoken in voiceover.",
     "check": "hasVoiceover=true must suppress visual CTA overlay."
+  },
+  {
+    "id": "auto_video_voiceover_has_cta",
+    "severity": "high",
+    "rule": "Auto video voiceover must end with a spoken CTA.",
+    "reason": "The auto format requires a voice-only closing CTA.",
+    "check": "voiceover.text must contain voiceover.cta in the ending segment."
+  },
+  {
+    "id": "auto_video_cta_not_on_screen",
+    "severity": "high",
+    "rule": "Auto video CTA must not be present on screen or in poster text.",
+    "reason": "CTA should stay voice-only for this format.",
+    "check": "poster and onScreenText must not contain the CTA phrase."
+  },
+  {
+    "id": "auto_video_duration_max_30_sec",
+    "severity": "high",
+    "rule": "Auto video duration must stay within 30 seconds.",
+    "reason": "The factory mode is limited to short-form output.",
+    "check": "maxDurationSec and requested duration must be <= 30."
+  },
+  {
+    "id": "auto_video_poster_has_title_and_facts",
+    "severity": "medium",
+    "rule": "Auto poster must contain a title and 2-3 facts.",
+    "reason": "The poster drives the first frame and on-screen retention.",
+    "check": "poster.title must exist and poster.facts length must be 2-3."
+  },
+  {
+    "id": "auto_video_language_matches_selected",
+    "severity": "high",
+    "rule": "Auto video text must match the selected language.",
+    "reason": "Voiceover and captions must stay consistent with the chosen locale.",
+    "check": "material.rules.language must equal the requested language."
+  },
+  {
+    "id": "auto_video_voiceover_human_style",
+    "severity": "medium",
+    "rule": "Auto video voiceover should sound human and conversational.",
+    "reason": "The product goal is spoken, natural delivery.",
+    "check": "voiceover should avoid robotic transition phrases."
   }
 ]

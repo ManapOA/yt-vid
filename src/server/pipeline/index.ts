@@ -13,6 +13,7 @@ import { buildMultilingualScript } from './translation';
 import { createVoiceovers } from './voiceover';
 import { createRunFolder, saveRunRecord, saveStageArtifact } from '../storage/runs';
 import { appendTopicHistory } from '../storage/topic-history';
+export { runAutoVideoPipeline } from './auto-video-engine';
 
 export async function runFullPipeline({
   directionId,
@@ -65,6 +66,7 @@ export async function runFullPipeline({
     outputDir: runDir,
     hasVoiceover,
     renderStatus: 'completed',
+    mode: 'manual',
     artifacts: {
       script: 'script.json',
       voiceover: 'voiceover.json',

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PreviewPhone } from '../components/PreviewPhone';
-import { DIRECTIONS, LANGUAGES } from '../shared/constants';
+import { AUTO_DIRECTIONS, DIRECTIONS, LANGUAGES } from '../shared/constants';
 import type {
+  AutoDirectionId,
+  AutoVideoResult,
   BootstrapPayload,
   CreateVideoPayload,
   DesignPackage,
@@ -31,6 +33,10 @@ const emptyDraft: ScriptDraft = {
   onScreenText: ''
 };
 
+function resolveDirectionIdFromAuto(direction: AutoDirectionId) {
+  return AUTO_DIRECTIONS.find((item) => item.id === direction)?.directionId || null;
+}
+
 export function App() {
   const [bootstrap, setBootstrap] = useState<BootstrapPayload | null>(null);
   const [directionId, setDirectionId] = useState(DIRECTIONS[0].id);
@@ -52,6 +58,14 @@ export function App() {
   const [isGeneratingScripts, setIsGeneratingScripts] = useState(false);
   const [isHumanizing, setIsHumanizing] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
+  const [autoDirection, setAutoDirection] = useState<AutoDirectionId>('psychology');
+  const [autoLanguage, setAutoLanguage] = useState<LanguageCode>('ru');
+  const [autoCount, setAutoCount] = useState(1);
+  const [autoStatus, setAutoStatus] = useState('Idle');
+  const [autoError, setAutoError] = useState('');
+  const [autoResult, setAutoResult] = useState<AutoVideoResult | null>(null);
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false);
+  const [showTopicCandidates, setShowTopicCandidates] = useState(false);
 
   useEffect(() => {
     void bootstrapApp();
@@ -63,11 +77,38 @@ export function App() {
     void generateTopics(true);
   }, [directionId, languages[0]]);
 
+  useEffect(() => {
+    resetCurrentScriptState('Ready');
+  }, [directionId]);
+
+  useEffect(() => {
+    const mappedDirectionId = resolveDirectionIdFromAuto(autoDirection);
+    if (mappedDirectionId && mappedDirectionId !== directionId) {
+      setDirectionId(mappedDirectionId);
+    }
+  }, [autoDirection, directionId]);
+
+  useEffect(() => {
+    setLanguages((current) => {
+      if (current[0] === autoLanguage && current.length === 1) return current;
+      return [autoLanguage];
+    });
+    setActiveLanguage(autoLanguage);
+  }, [autoLanguage]);
+
   const activeScript = useMemo(
     () => scripts.find((item) => item.language === activeLanguage) || scripts[0] || null,
     [activeLanguage, scripts]
   );
   const activeDraft = activeScript ? drafts[activeScript.language] || toDraft(activeScript) : emptyDraft;
+
+  function resetCurrentScriptState(nextStatus = 'Ready') {
+    setScripts([]);
+    setDrafts({});
+    setDesign(null);
+    setErrorMessage('');
+    setStatus(nextStatus);
+  }
 
   async function bootstrapApp() {
     const res = await fetch('/api/bootstrap');
@@ -108,7 +149,8 @@ export function App() {
       const nextTopics = data.topics || [];
       setTopicCandidates(nextTopics);
       setSelectedTopic(nextTopics[0]?.topic || '');
-      setStatus(silent ? 'Direction updated' : 'Topics ready');
+      resetCurrentScriptState(silent ? 'Direction updated' : 'Topics ready');
+      setShowTopicCandidates(false);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to generate topics');
       setStatus('Topic generation failed');
@@ -131,7 +173,7 @@ export function App() {
           directionId,
           topic,
           languages,
-          durationSeconds: 20,
+          durationSeconds: 30,
           hasVoiceover
         })
       });
@@ -197,7 +239,7 @@ export function App() {
       directionId,
       topic,
       languages,
-      durationSeconds: 20,
+      durationSeconds: 30,
       hasVoiceover,
       scripts: editedScripts
     };
@@ -224,6 +266,39 @@ export function App() {
       setStatus('Render failed');
     } finally {
       setIsRendering(false);
+    }
+  }
+
+  async function generateAutoVideo() {
+    setIsAutoGenerating(true);
+    setAutoError('');
+    setAutoStatus('Generating auto video...');
+    try {
+      const res = await fetch('/api/runs/auto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          direction: autoDirection,
+          language: autoLanguage,
+          count: Math.min(1, Math.max(1, autoCount)),
+          voiceover: hasVoiceover,
+          durationSec: 30
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAutoError(data.error || 'Auto video generation failed');
+        setAutoStatus('Auto generation failed');
+        return;
+      }
+      setAutoResult(data as AutoVideoResult);
+      setAutoStatus('Auto video completed');
+      await refreshRuns();
+    } catch (error) {
+      setAutoError(error instanceof Error ? error.message : 'Auto video generation failed');
+      setAutoStatus('Auto generation failed');
+    } finally {
+      setIsAutoGenerating(false);
     }
   }
 
@@ -264,6 +339,7 @@ export function App() {
       : [...current, language]
     );
     setActiveLanguage(language);
+    resetCurrentScriptState(`Language set to ${language.toUpperCase()}`);
   }
 
   return (
@@ -288,6 +364,67 @@ export function App() {
       </section>
 
       {errorMessage ? <section className="errorBanner">{errorMessage}</section> : null}
+      {autoError ? <section className="errorBanner">{autoError}</section> : null}
+
+      <section className="panel">
+        <p className="eyebrow">Auto Video Factory</p>
+        <div className="autoHeader">
+          <div>
+            <h2>Generate a ready MP4 in one click</h2>
+            <p className="pillHint">Topic, poster, voiceover, captions, music, Hermes checks, and render are handled automatically.</p>
+          </div>
+          <strong className="autoStatus">{autoStatus}</strong>
+        </div>
+        <div className="autoControls">
+          <label className="fieldBlock">
+            <span className="eyebrow">Theme</span>
+            <select className="textInput" value={autoDirection} onChange={(event) => setAutoDirection(event.target.value as AutoDirectionId)}>
+              {AUTO_DIRECTIONS.map((direction) => (
+                <option key={direction.id} value={direction.id}>{direction.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="fieldBlock">
+            <span className="eyebrow">Language</span>
+            <select className="textInput" value={autoLanguage} onChange={(event) => setAutoLanguage(event.target.value as LanguageCode)}>
+              {LANGUAGES.map((language) => (
+                <option key={language.code} value={language.code}>{language.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="fieldBlock autoCountField">
+            <span className="eyebrow">Count</span>
+            <input
+              className="textInput"
+              max={1}
+              min={1}
+              onChange={(event) => setAutoCount(Math.min(1, Math.max(1, Number(event.target.value) || 1)))}
+              type="number"
+              value={autoCount}
+            />
+          </label>
+          <button className="autoPrimaryButton" disabled={isAutoGenerating} onClick={generateAutoVideo} type="button">
+            {isAutoGenerating ? 'Generating auto video...' : 'Generate Auto Video'}
+          </button>
+        </div>
+
+        {autoResult ? (
+          <div className="runDetails autoResultPanel">
+            <h3>{autoResult.summary.poster.title}</h3>
+            <p><strong>Topic:</strong> {autoResult.summary.topic}</p>
+            <p><strong>Video:</strong> <a href={`/${autoResult.videoPath}`} rel="noreferrer" target="_blank">Open MP4</a></p>
+            <p><strong>Voiceover:</strong> {autoResult.summary.voiceover.text}</p>
+            <div className="artifactGrid">
+              {autoResult.summary.poster.facts.map((fact, index) => (
+                <span className="artifactLink" key={`${fact}-${index}`}>{fact}</span>
+              ))}
+              {autoResult.summary.onScreenText.map((item, index) => (
+                <span className="artifactLink video" key={`${item}-${index}`}>{item}</span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </section>
 
       <section className="dashboardGrid">
         <div className="controlColumn">
@@ -308,7 +445,7 @@ export function App() {
               ))}
             </div>
             <div className="toolbar">
-              <button disabled={isGeneratingTopics} onClick={() => void generateTopics()} type="button">
+              <button className="compactButton" disabled={isGeneratingTopics} onClick={() => void generateTopics()} type="button">
                 {isGeneratingTopics ? 'Generating...' : 'Generate topics'}
               </button>
               <label className="toggleRow">
@@ -320,27 +457,56 @@ export function App() {
 
           <div className="panel">
             <p className="eyebrow">2. Topic</p>
-            <h2>Fresh candidates</h2>
-            <div className="topicList">
-              {topicCandidates.map((candidate) => (
-                <button
-                  key={candidate.topic}
-                  className={selectedTopic === candidate.topic ? 'topicCard active' : 'topicCard'}
-                  onClick={() => {
-                    setSelectedTopic(candidate.topic);
-                    setCustomTopic('');
-                  }}
-                  type="button"
-                >
-                  <strong>{candidate.topic}</strong>
-                  <span>{candidate.hook}</span>
-                </button>
-              ))}
+            <div className="sectionHeaderRow">
+              <h2>Fresh candidates</h2>
+              <button
+                className="ghostButton"
+                onClick={() => setShowTopicCandidates((current) => !current)}
+                type="button"
+              >
+                {showTopicCandidates ? 'Hide list' : `Show list (${topicCandidates.length})`}
+              </button>
             </div>
+            {selectedTopic ? (
+              <button
+                className="topicCard active selectedTopicCard"
+                onClick={() => {
+                  setShowTopicCandidates((current) => !current);
+                  resetCurrentScriptState('Topic changed. Generate scripts again.');
+                }}
+                type="button"
+              >
+                <strong>{selectedTopic}</strong>
+                <span>{topicCandidates.find((candidate) => candidate.topic === selectedTopic)?.hook || 'Selected topic'}</span>
+              </button>
+            ) : null}
+            {showTopicCandidates ? (
+              <div className="topicList collapsibleTopicList">
+                {topicCandidates.map((candidate) => (
+                  <button
+                    key={candidate.topic}
+                    className={selectedTopic === candidate.topic ? 'topicCard active' : 'topicCard'}
+                    onClick={() => {
+                      setSelectedTopic(candidate.topic);
+                      setCustomTopic('');
+                      setShowTopicCandidates(false);
+                      resetCurrentScriptState('Topic changed. Generate scripts again.');
+                    }}
+                    type="button"
+                  >
+                    <strong>{candidate.topic}</strong>
+                    <span>{candidate.hook}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <input
               className="textInput"
               value={customTopic}
-              onChange={(event) => setCustomTopic(event.target.value)}
+              onChange={(event) => {
+                setCustomTopic(event.target.value);
+                resetCurrentScriptState(event.target.value.trim() ? 'Custom topic changed. Generate scripts again.' : 'Ready');
+              }}
               placeholder="Or type your own topic"
             />
             <div className="languagePills">
@@ -357,10 +523,10 @@ export function App() {
             </div>
             <p className="pillHint">Selected pills will be rendered. The active editor tab controls the preview and default result player.</p>
             <div className="toolbar">
-              <button disabled={isGeneratingScripts || !selectedTopic && !customTopic.trim()} onClick={generateScript} type="button">
+              <button className="compactButton" disabled={isGeneratingScripts || !selectedTopic && !customTopic.trim()} onClick={generateScript} type="button">
                 {isGeneratingScripts ? 'Generating...' : 'Generate scripts'}
               </button>
-              <button disabled={!activeScript || isHumanizing} onClick={humanize} type="button">
+              <button className="compactButton" disabled={!activeScript || isHumanizing} onClick={humanize} type="button">
                 {isHumanizing ? 'Humanizing...' : 'Humanize active'}
               </button>
             </div>
@@ -391,8 +557,8 @@ export function App() {
               <textarea value={activeDraft.onScreenText} onChange={(event) => updateDraftField('onScreenText', event.target.value)} placeholder="On-screen text" />
             </div>
             <div className="toolbar">
-              <button disabled={!activeScript} onClick={applyDraft} type="button">Apply active edits</button>
-              <button disabled={scripts.length === 0 || isRendering} onClick={renderVideo} type="button">
+              <button className="compactButton" disabled={!activeScript} onClick={applyDraft} type="button">Apply active edits</button>
+              <button className="compactButton" disabled={scripts.length === 0 || isRendering} onClick={renderVideo} type="button">
                 {isRendering ? 'Rendering video...' : 'Create full video'}
               </button>
             </div>

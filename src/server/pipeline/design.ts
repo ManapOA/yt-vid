@@ -2,13 +2,20 @@ import type { Direction, MultiScriptPackage } from '../../shared/types';
 import { buildOpenDesignPackage } from '../providers/open-design';
 import { resolveCtaPresentation } from './cta-policy';
 
-export function createDesign(direction: Direction, bundle: MultiScriptPackage) {
+export function createDesign(direction: Direction, bundle: MultiScriptPackage, options?: { forceVoiceOnlyCta?: boolean }) {
   const primary = bundle.languages[0];
-  const ctaPresentation = resolveCtaPresentation({
+  const baseCtaPresentation = resolveCtaPresentation({
     hasVoiceover: bundle.hasVoiceover,
     cta: primary.cta,
     voiceoverText: primary.voiceoverText
   });
+  const ctaPresentation = options?.forceVoiceOnlyCta
+    ? {
+      ...baseCtaPresentation,
+      showOnScreenCta: false,
+      onScreenCtaText: null
+    }
+    : baseCtaPresentation;
 
   const updatedLanguages = bundle.languages.map((script) => ({
     ...script,

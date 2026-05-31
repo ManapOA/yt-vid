@@ -12,12 +12,21 @@ function buildFallbackTopics(direction: Direction, language: LanguageCode): Topi
     `the hidden reason behind ${seed}`
   ]);
 
+  const localizedHooks: Record<LanguageCode, (topic: string) => string> = {
+    en: (topic) => `A short emotional angle about ${topic}.`,
+    ru: (topic) => `Короткий эмоциональный заход про ${topic}.`,
+    kk: (topic) => `${topic} туралы қысқа эмоциялық заход.`,
+    de: (topic) => `Ein kurzer emotionaler Einstieg zu ${topic}.`,
+    es: (topic) => `Un gancho emocional corto sobre ${topic}.`,
+    it: (topic) => `Un aggancio emotivo breve su ${topic}.`
+  };
+
   return {
     direction: direction.id,
     language,
     topics: base.slice(0, 12).map((topic, index) => ({
       topic,
-      hook: `Start with a sharp hook about ${topic}.`,
+      hook: localizedHooks[language](topic),
       angle: index % 2 === 0 ? 'self-reflection' : 'entertainment',
       audience: direction.audience,
       noveltyScore: clamp(0.92 - index * 0.04, 0.2, 0.98),

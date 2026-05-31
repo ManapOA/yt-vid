@@ -18,6 +18,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -27,9 +28,9 @@ button {
 }
 
 .pageShell {
-  max-width: 1460px;
+  max-width: 1420px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 14px;
 }
 
 .heroPanel,
@@ -42,10 +43,10 @@ button {
 }
 
 .heroPanel {
-  padding: 18px 20px;
+  padding: 16px 18px;
   display: grid;
   grid-template-columns: 1.9fr 0.7fr;
-  gap: 16px;
+  gap: 14px;
   align-items: center;
 }
 
@@ -70,9 +71,9 @@ p {
 }
 
 h1 {
-  font-size: clamp(24px, 2.9vw, 42px);
-  line-height: 1;
-  max-width: 18ch;
+  font-size: clamp(22px, 2.5vw, 36px);
+  line-height: 1.02;
+  max-width: 20ch;
 }
 
 .subcopy {
@@ -119,8 +120,9 @@ h1 {
 .dashboardGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.18fr) minmax(360px, 0.82fr);
-  gap: 16px;
-  margin-top: 16px;
+  gap: 12px;
+  margin-top: 14px;
+  align-items: start;
 }
 
 .errorBanner {
@@ -135,11 +137,46 @@ h1 {
 .controlColumn,
 .previewColumn {
   display: grid;
-  gap: 16px;
+  gap: 12px;
+  align-content: start;
 }
 
 .panel {
-  padding: 18px;
+  padding: 14px;
+}
+
+.autoHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.autoControls {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(180px, 220px) 96px auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 10px;
+}
+
+.fieldBlock {
+  display: grid;
+  gap: 6px;
+}
+
+.autoCountField {
+  max-width: 96px;
+}
+
+.autoPrimaryButton {
+  align-self: stretch;
+  min-height: 46px;
+}
+
+.autoStatus {
+  white-space: nowrap;
+  color: #ffb088;
 }
 
 .directionGrid,
@@ -148,12 +185,12 @@ h1 {
 .editorGrid,
 .languagePills {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .directionGrid {
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  margin-top: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  margin-top: 10px;
 }
 
 .directionCard,
@@ -173,9 +210,9 @@ h1 {
   background: rgba(255, 255, 255, 0.05);
   color: white;
   display: grid;
-  gap: 6px;
+  gap: 4px;
   text-align: left;
-  padding: 14px;
+  padding: 12px;
 }
 
 .directionCard.active,
@@ -211,12 +248,24 @@ h1 {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .toolbar button {
-  padding: 12px 18px;
+  padding: 10px 16px;
   font-weight: 700;
+}
+
+.compactButton {
+  min-height: 42px;
+}
+
+.ghostButton {
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.9);
+  border-radius: 999px;
+  padding: 8px 12px;
 }
 
 .toolbar button:disabled {
@@ -231,23 +280,42 @@ h1 {
 }
 
 .textInput,
+select,
 textarea {
   width: 100%;
   border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.06);
   color: white;
   border-radius: 18px;
-  padding: 14px 16px;
+  padding: 12px 14px;
+}
+
+select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.9) 50%),
+    linear-gradient(135deg, rgba(255,255,255,0.9) 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) calc(50% - 3px),
+    calc(100% - 14px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+
+select option {
+  color: #14181d;
+  background: #f4efe6;
 }
 
 textarea {
-  min-height: 84px;
+  min-height: 76px;
   resize: vertical;
 }
 
 .languagePills {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .pillHint {
@@ -267,7 +335,7 @@ textarea {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .langTab {
@@ -278,21 +346,38 @@ textarea {
 }
 
 .editorGrid {
-  margin-top: 12px;
+  margin-top: 10px;
+}
+
+.sectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.selectedTopicCard {
+  margin-top: 10px;
+}
+
+.collapsibleTopicList {
+  margin-top: 10px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .stickyPanel {
-  position: sticky;
-  top: 16px;
+  position: static;
 }
 
 .previewPhone,
 .previewEmpty {
   aspect-ratio: 9 / 16;
   border-radius: 30px;
-  padding: 24px;
+  padding: 16px;
   display: grid;
-  min-height: 650px;
+  min-height: 300px;
 }
 
 .previewPhone {
@@ -309,27 +394,36 @@ textarea {
 }
 
 .previewTitle {
-  align-self: center;
-  font-size: clamp(40px, 3vw, 64px);
-  line-height: 0.95;
+  font-size: clamp(24px, 1.8vw, 36px);
+  line-height: 0.96;
   font-weight: 800;
+  text-shadow: 0 10px 30px rgba(0,0,0,0.28);
 }
 
-.previewCaptions {
+.previewTitleWrap {
+  display: flex;
+  align-items: center;
+  min-height: 88px;
+}
+
+.previewSubtitleStage {
   display: grid;
+  align-content: end;
   gap: 10px;
+  min-height: 132px;
+  margin-top: 12px;
 }
 
-.caption {
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255,255,255,0.1);
-  font-size: 20px;
-}
-
-.caption.active {
-  background: rgba(255,255,255,0.92);
-  color: #181211;
+.previewSubtitleLine {
+  font-size: 18px;
+  line-height: 1.14;
+  color: rgba(255,255,255,0.94);
+  padding-left: 14px;
+  border-left: 2px solid rgba(255,255,255,0.42);
+  text-shadow: 0 8px 24px rgba(0,0,0,0.28);
+  opacity: 0;
+  transform: translateY(12px);
+  animation: previewSubtitleIn 0.45s ease forwards;
 }
 
 .previewCta,
@@ -341,6 +435,10 @@ textarea {
 
 .previewRule {
   color: rgba(255,255,255,0.78);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .runItem {
@@ -357,11 +455,15 @@ textarea {
 }
 
 .runDetails {
-  margin-top: 14px;
-  padding-top: 14px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid rgba(255,255,255,0.08);
   display: grid;
-  gap: 10px;
+  gap: 8px;
+}
+
+.autoResultPanel {
+  margin-top: 12px;
 }
 
 .runLanguageTabs {
@@ -384,7 +486,7 @@ textarea {
 
 .artifactGrid {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
 }
 
@@ -410,10 +512,26 @@ textarea {
   color: rgba(255,255,255,0.64);
 }
 
+@keyframes previewSubtitleIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 1100px) {
   .heroPanel,
   .dashboardGrid {
     grid-template-columns: 1fr;
+  }
+
+  .autoControls {
+    grid-template-columns: 1fr 1fr;
   }
 
   .stickyPanel {
@@ -433,6 +551,13 @@ textarea {
 
   .previewPhone,
   .previewEmpty {
-    min-height: 560px;
+    min-height: 260px;
+  }
+
+  .autoHeader,
+  .sectionHeaderRow,
+  .autoControls {
+    grid-template-columns: 1fr;
+    display: grid;
   }
 }

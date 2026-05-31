@@ -1,4 +1,5 @@
 import { topicGenerationSchema, scriptSchema } from '../../shared/schemas';
+import { parseStructuredJson } from './json';
 
 export async function generateWithOpenRouter<T>({
   prompt,
@@ -54,7 +55,7 @@ export async function generateWithOpenRouter<T>({
   if (!content) return fallback;
 
   try {
-    return schema.parse(JSON.parse(content));
+    return parseStructuredJson(content, schema);
   } catch {
     return fallback;
   }

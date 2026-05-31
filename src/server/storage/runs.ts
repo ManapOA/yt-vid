@@ -20,6 +20,10 @@ export async function saveRunRecord(runDir: string, run: RunRecord) {
   await writeJsonFile(path.join(runDir, 'run.json'), run);
 }
 
+export async function getRun(runId: string) {
+  return readJsonFile<RunRecord | null>(path.join(config.outputRoot, runId, 'run.json'), null);
+}
+
 export async function listRuns() {
   try {
     const entries = await fs.readdir(config.outputRoot, { withFileTypes: true });
