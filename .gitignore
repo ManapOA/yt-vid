@@ -9,3 +9,5 @@ coverage/
 public/remotion-bundle/
 public/render-assets/
 music/
+data/hermes/decisions.json
+data/topic-history.json
