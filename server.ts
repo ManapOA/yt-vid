@@ -8,13 +8,11 @@ import { getHermesMemory } from './src/server/hermes/memory';
 import { appendHermesFix } from './src/server/hermes/decisions';
 import { runRegressionChecks } from './src/server/hermes/regression-checks';
 import { getHermesRules } from './src/server/hermes/rules';
-import { createDesign } from './src/server/pipeline/design';
-import { runFullPipeline, generateTopicsForDirection, buildScriptDraft } from './src/server/pipeline';
-import { humanizeScript } from './src/server/pipeline/humanize';
-import { buildMultilingualScript } from './src/server/pipeline/translation';
+import { generateTopicsForDirection } from './src/server/pipeline';
 import { getRun, listRuns } from './src/server/storage/runs';
-import { autoVideoRequestSchema } from './src/shared/schemas';
+import { autoVideoRequestSchema, horrorStoryRequestSchema } from './src/shared/schemas';
 import { runAutoVideoPipeline } from './src/server/pipeline/auto-video-engine';
+import { runHorrorSeriesPipeline } from './src/server/pipeline/horror-series-pipeline';
 
 async function createApp() {
   const app = express();
@@ -30,6 +28,8 @@ async function createApp() {
   });
 
   app.use('/output', express.static(path.join(config.root, 'output')));
+  app.use('/Video', express.static(path.join(config.root, 'Video')));
+  app.use('/exports', express.static(config.videoExportDir));
   app.use(vite.middlewares);
 
   app.get('/api/bootstrap', async (_req, res) => {
@@ -41,7 +41,8 @@ async function createApp() {
       directions: DIRECTIONS,
       languages: LANGUAGES,
       textSettings: {
-        provider: config.llmProvider === 'gemini' ? 'gemini' : 'openrouter',
+        provider: config.llmProvider === 'gemini' ? 'gemini' : config.llmProvider === 'openrouter' ? 'openrouter' : 'cerebras',
+        cerebrasModel: config.cerebras.model,
         openrouterModel: config.openrouter.model,
         geminiModel: config.gemini.model
       },
@@ -71,85 +72,43 @@ async function createApp() {
     }
   });
 
-  app.post('/api/script/generate', async (req, res) => {
-    try {
-      const direction = DIRECTIONS.find((item) => item.id === req.body.directionId);
-      if (!direction) throw new Error('Unknown direction');
-      const { bundle, design } = await buildScriptDraft({
-        directionId: direction.id,
-        topic: req.body.topic,
-        languages: req.body.languages || ['en'],
-        durationSeconds: Number(req.body.durationSeconds || config.defaultDurationSeconds),
-        hasVoiceover: req.body.hasVoiceover ?? true,
-        textSettings: req.body.textSettings
-      });
-      res.json({
-        script: bundle.languages[0],
-        scripts: bundle.languages,
-        design
-      });
-    } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : 'Script generation failed' });
-    }
+  app.post('/api/script/generate', async (_req, res) => {
+    res.status(410).json({ error: 'Deprecated. Use POST /api/runs/auto for automatic Shorts generation.' });
   });
 
-  app.post('/api/script/humanize', async (req, res) => {
-    try {
-      const nextScript = humanizeScript(req.body);
-      const direction = DIRECTIONS.find((item) => item.id === nextScript.direction);
-      if (!direction) throw new Error('Unknown direction');
-      const multilingual = await buildMultilingualScript([nextScript]);
-      multilingual.hasVoiceover = true;
-      const { bundle, design } = createDesign(direction, multilingual);
-      res.json({ script: bundle.languages[0], design });
-    } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : 'Humanize failed' });
-    }
+  app.post('/api/script/humanize', async (_req, res) => {
+    res.status(410).json({ error: 'Deprecated. Manual script editing has been removed from this app.' });
   });
 
   app.post('/api/voiceover/create', async (req, res) => {
     res.json({ ok: true, note: 'Voiceover is created during full pipeline runs.' });
   });
 
-  app.post('/api/video/render', async (req, res) => {
-    try {
-      const direction = DIRECTIONS.find((item) => item.id === req.body.directionId || item.id === req.body.script?.direction);
-      if (!direction) throw new Error('Unknown direction');
-      const multilingual = await buildMultilingualScript([req.body.script]);
-      multilingual.hasVoiceover = req.body.hasVoiceover ?? true;
-      const { design } = createDesign(direction, multilingual);
-      res.json({ design });
-    } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : 'Preview render failed' });
-    }
+  app.post('/api/video/render', async (_req, res) => {
+    res.status(410).json({ error: 'Deprecated. Use POST /api/runs/auto to render a complete video package.' });
   });
 
-  app.post('/api/agent/create-video', async (req, res) => {
-    try {
-      const run = await runFullPipeline({
-        directionId: req.body.directionId,
-        topic: req.body.topic,
-        languages: req.body.languages || ['en'],
-        durationSeconds: Number(req.body.durationSeconds || config.defaultDurationSeconds),
-        hasVoiceover: req.body.hasVoiceover ?? config.voiceoverEnabled,
-        scripts: req.body.scripts
-      });
-      res.json({ run });
-    } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : 'Pipeline failed' });
-    }
+  app.post('/api/agent/create-video', async (_req, res) => {
+    res.status(410).json({ error: 'Deprecated. Use POST /api/runs/auto for the production auto-generation flow.' });
   });
 
   app.post('/api/runs/auto', async (req, res) => {
     try {
       const payload = autoVideoRequestSchema.parse(req.body);
-      const result = await runAutoVideoPipeline({
-        ...payload,
-        count: payload.count || 1
-      });
+      const result = await runAutoVideoPipeline(payload);
       res.json(result);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : 'Auto video pipeline failed' });
+    }
+  });
+
+  app.post('/api/runs/horror', async (req, res) => {
+    try {
+      const payload = horrorStoryRequestSchema.parse(req.body);
+      const result = await runHorrorSeriesPipeline(payload);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Horror story generation failed' });
     }
   });
 

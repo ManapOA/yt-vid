@@ -27,6 +27,7 @@ import { buildMultilingualScript } from './translation';
 import { sentence } from '../utils';
 import { generateTopicCandidates } from './topic-engine';
 import { getWavDurationSec } from './audio-duration';
+import { exportYoutubePackage } from './video-exporter';
 
 const categoryToDirectionId: Record<Exclude<AutoDirectionId, 'random'>, string> = {
   psychology: 'self-awareness',
@@ -77,7 +78,9 @@ async function createAutoRunRecord({
   material,
   request,
   artifacts,
-  youtubePackage
+  youtubePackage,
+  createdAt,
+  exportPaths
 }: {
   runDir: string;
   direction: Direction;
@@ -85,15 +88,28 @@ async function createAutoRunRecord({
   request: AutoVideoRequest;
   artifacts: Record<string, string>;
   youtubePackage: ReturnType<typeof createYouTubePackage>;
+  createdAt: string;
+  exportPaths?: {
+    exportDir: string;
+    absoluteExportDir: string;
+    exportVideoPath: string;
+    uploadTextPath: string;
+    metadataPath: string;
+  };
 }) {
   const run: RunRecord = {
     id: path.basename(runDir),
-    createdAt: new Date().toISOString(),
+    createdAt,
     directionId: direction.id,
     directionName: direction.name,
     topic: material.topic,
     languages: [material.rules.language],
     outputDir: runDir,
+    exportDir: exportPaths?.exportDir,
+    absoluteExportDir: exportPaths?.absoluteExportDir,
+    exportVideoPath: exportPaths?.exportVideoPath,
+    uploadTextPath: exportPaths?.uploadTextPath,
+    metadataPath: exportPaths?.metadataPath,
     hasVoiceover: request.voiceover,
     renderStatus: 'completed',
     mode: 'auto',
@@ -190,6 +206,7 @@ export async function runAutoVideoPipeline(request: AutoVideoRequest): Promise<A
     const primaryVideoName = 'video.mp4';
     await fs.copyFile(renderedFile, path.join(runDir, primaryVideoName));
 
+    const createdAt = new Date().toISOString();
     const youtubePackage = {
       ...createYouTubePackage(designBundle),
       title: material.youtube.title,
@@ -210,10 +227,17 @@ export async function runAutoVideoPipeline(request: AutoVideoRequest): Promise<A
       render: 'render.json'
     };
 
+    const exportPaths = await exportYoutubePackage({
+      sourceVideoPath: path.join(runDir, primaryVideoName),
+      material,
+      language: request.language,
+      createdAt
+    });
+
     const manifest: AutoVideoManifest = {
       mode: 'auto',
       runId: path.basename(runDir),
-      createdAt: new Date().toISOString(),
+      createdAt,
       request,
       resolvedDirectionId: direction.id,
       resolvedDirectionName: direction.name,
@@ -222,6 +246,11 @@ export async function runAutoVideoPipeline(request: AutoVideoRequest): Promise<A
       durationSec: designBundle.languages[0].durationSeconds,
       hasVoiceover: request.voiceover,
       videoPath: path.join(runDir, primaryVideoName),
+      exportDir: exportPaths.exportDir,
+      absoluteExportDir: exportPaths.absoluteExportDir,
+      exportVideoPath: exportPaths.exportVideoPath,
+      uploadTextPath: exportPaths.uploadTextPath,
+      metadataPath: exportPaths.metadataPath,
       artifacts
     };
 
@@ -245,7 +274,9 @@ export async function runAutoVideoPipeline(request: AutoVideoRequest): Promise<A
       material,
       request,
       artifacts,
-      youtubePackage
+      youtubePackage,
+      createdAt,
+      exportPaths
     });
 
     await appendTopicHistory(direction.id, material.topic);
@@ -260,6 +291,11 @@ export async function runAutoVideoPipeline(request: AutoVideoRequest): Promise<A
       runId: run.id,
       status: 'completed',
       videoPath: path.posix.join('output', 'runs', run.id, primaryVideoName),
+      exportDir: exportPaths.exportDir,
+      absoluteExportDir: exportPaths.absoluteExportDir,
+      exportVideoPath: exportPaths.exportVideoPath,
+      uploadTextPath: exportPaths.uploadTextPath,
+      metadataPath: exportPaths.metadataPath,
       artifacts: {
         material: artifacts.material,
         poster: artifacts.poster,

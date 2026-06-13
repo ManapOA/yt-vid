@@ -1,9 +1,11 @@
 import React from 'react';
 import { Composition } from 'remotion';
 import { YtVidShort } from './Short';
+import { HorrorStoryVideo } from './HorrorStory';
 
 export const RemotionRoot: React.FC = () => {
   return (
+    <>
     <Composition
       id="YtVidShort"
       component={YtVidShort}
@@ -52,5 +54,34 @@ export const RemotionRoot: React.FC = () => {
         musicVolume: 0.1
       }}
     />
+    <Composition
+      id="HorrorStory"
+      component={HorrorStoryVideo}
+      width={1080}
+      height={1920}
+      fps={30}
+      durationInFrames={1500}
+      calculateMetadata={({ props }) => ({
+        durationInFrames: Math.ceil(Math.min(60, Math.max(5, Number(props.part?.durationSec || 45))) * 30)
+      })}
+      defaultProps={{
+        part: {
+          index: 1,
+          total: 2,
+          title: 'The Listener Beyond the Firelight - Part 1/2',
+          text: 'The fire was almost gone when someone sat beyond the light.',
+          cta: 'Subscribe for the next part.',
+          voiceoverText: 'The fire was almost gone when someone sat beyond the light. Subscribe for the next part.',
+          onScreenText: ['The fire was almost gone when someone sat beyond the light.'],
+          visualPrompt: 'dying campfire',
+          durationSec: 45
+        },
+        audioFile: null,
+        musicFile: null,
+        musicVolume: 0.08,
+        visualization: true
+      }}
+    />
+    </>
   );
 };

@@ -16,7 +16,7 @@ export function PreviewPhone({ script, design }: { script: ScriptPackage | null;
         <div className="previewTitle">{script.title}</div>
       </div>
       <div className="previewSubtitleStage">
-        {script.onScreenText.slice(0, 3).map((line, index) => (
+        {script.onScreenText.map((line, index) => (
           <div className="previewSubtitleLine" key={`${line}-${index}`} style={{ animationDelay: `${index * 0.08}s` }}>
             {line}
           </div>

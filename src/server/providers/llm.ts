@@ -1,4 +1,5 @@
 import { config } from '../config';
+import { generateWithCerebras } from './cerebras';
 import { generateWithGemini } from './gemini';
 import { generateWithOpenRouter } from './openrouter';
 
@@ -11,6 +12,17 @@ export async function generateStructuredWithLlm<T>({
   fallback: T;
   schema: { parse: (value: unknown) => T };
 }) {
+  if (config.llmProvider === 'cerebras') {
+    return generateWithCerebras({
+      prompt,
+      fallback,
+      schema,
+      model: config.cerebras.model,
+      apiKey: config.cerebras.apiKey,
+      baseUrl: config.cerebras.baseUrl
+    });
+  }
+
   if (config.llmProvider === 'gemini') {
     return generateWithGemini({
       prompt,

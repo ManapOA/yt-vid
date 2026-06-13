@@ -1,5 +1,5 @@
 export type LanguageCode = 'en' | 'ru' | 'de' | 'es' | 'it' | 'kk';
-export type TextProviderId = 'openrouter' | 'gemini';
+export type TextProviderId = 'cerebras' | 'openrouter' | 'gemini';
 
 export type TextGenerationSettings = {
   provider: TextProviderId;
@@ -14,6 +14,9 @@ export type AutoDirectionId =
   | 'mindset'
   | 'numerology'
   | 'random';
+
+export type VideoMode = 'shorts' | 'horror';
+export type HorrorStyle = 'campfire' | 'urban-legend' | 'paranormal' | 'psychological';
 
 export type RuleSeverity = 'low' | 'medium' | 'high' | 'critical';
 
@@ -93,13 +96,6 @@ export type DesignPackage = {
   }>;
 };
 
-export type ScriptDraftBundle = {
-  directionId: string;
-  topic: string;
-  hasVoiceover: boolean;
-  languages: ScriptPackage[];
-};
-
 export type VoiceArtifact = {
   language: LanguageCode;
   fileName: string;
@@ -145,15 +141,64 @@ export type AutoMaterial = {
 export type AutoVideoRequest = {
   direction: AutoDirectionId;
   language: LanguageCode;
-  count?: number;
   voiceover: boolean;
   durationSec: number;
+};
+
+export type HorrorStoryRequest = {
+  language: LanguageCode;
+  style: HorrorStyle;
+  voiceover: boolean;
+  visualization: boolean;
+};
+
+export type HorrorStoryDraft = {
+  title: string;
+  story: string;
+  description: string;
+  tags: string[];
+  visualMotifs: string[];
+};
+
+export type HorrorStoryPart = {
+  index: number;
+  total: number;
+  title: string;
+  text: string;
+  cta: string;
+  voiceoverText: string;
+  onScreenText: string[];
+  visualPrompt: string;
+  durationSec: number;
+};
+
+export type HorrorSeriesPartResult = {
+  index: number;
+  title: string;
+  durationSec: number;
+  outputVideoPath: string;
+  exportVideoPath: string;
+  exportVideoUrl: string;
+};
+
+export type HorrorSeriesResult = {
+  runId: string;
+  status: 'completed' | 'failed';
+  title: string;
+  exportDir: string;
+  absoluteExportDir: string;
+  parts: HorrorSeriesPartResult[];
 };
 
 export type AutoVideoResult = {
   runId: string;
   status: 'queued' | 'completed' | 'failed';
   videoPath: string;
+  exportDir?: string;
+  absoluteExportDir?: string;
+  exportVideoPath?: string;
+  uploadTextPath?: string;
+  metadataPath?: string;
   artifacts: {
     material: string;
     poster: string;
@@ -182,6 +227,11 @@ export type AutoVideoManifest = {
   durationSec: number;
   hasVoiceover: boolean;
   videoPath: string;
+  exportDir?: string;
+  absoluteExportDir?: string;
+  exportVideoPath?: string;
+  uploadTextPath?: string;
+  metadataPath?: string;
   artifacts: Record<string, string>;
 };
 
@@ -207,22 +257,18 @@ export type RunRecord = {
   topic: string;
   languages: LanguageCode[];
   outputDir: string;
+  exportDir?: string;
+  absoluteExportDir?: string;
+  exportVideoPath?: string;
+  uploadTextPath?: string;
+  metadataPath?: string;
   hasVoiceover: boolean;
   renderStatus: 'pending' | 'completed' | 'blocked' | 'failed';
-  mode?: 'manual' | 'auto';
+  mode?: 'manual' | 'auto' | 'horror';
   errorMessage?: string | null;
   artifacts: Record<string, string>;
   youtubePackage: YouTubePackage;
-};
-
-export type CreateVideoPayload = {
-  directionId: string;
-  topic: string;
-  languages: LanguageCode[];
-  durationSeconds: number;
-  hasVoiceover: boolean;
-  scripts?: ScriptPackage[];
-  textSettings?: TextGenerationSettings;
+  seriesParts?: HorrorSeriesPartResult[];
 };
 
 export type BootstrapPayload = {
@@ -234,6 +280,7 @@ export type BootstrapPayload = {
   languages: LanguageOption[];
   textSettings: {
     provider: TextProviderId;
+    cerebrasModel: string;
     openrouterModel: string;
     geminiModel: string;
   };

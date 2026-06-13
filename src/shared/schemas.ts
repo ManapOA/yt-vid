@@ -2,13 +2,20 @@ import { z } from 'zod';
 
 export const languageCodeSchema = z.enum(['en', 'ru', 'de', 'es', 'it', 'kk']);
 export const autoDirectionSchema = z.enum(['psychology', 'relationships', 'zodiac', 'mindset', 'numerology', 'random']);
+export const horrorStyleSchema = z.enum(['campfire', 'urban-legend', 'paranormal', 'psychological']);
+const normalizedScoreSchema = z.preprocess((value) => {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) return value;
+  if (numberValue > 1 && numberValue <= 100) return numberValue / 100;
+  return numberValue;
+}, z.number().min(0).max(1));
 
 export const topicCandidateSchema = z.object({
   topic: z.string().min(3),
   hook: z.string().min(3),
   angle: z.string().min(3),
   audience: z.string().min(3),
-  noveltyScore: z.number().min(0).max(1),
+  noveltyScore: normalizedScoreSchema,
   risk: z.enum(['low', 'medium', 'high'])
 });
 
@@ -59,7 +66,21 @@ export const autoMaterialSchema = z.object({
 export const autoVideoRequestSchema = z.object({
   direction: autoDirectionSchema,
   language: languageCodeSchema,
-  count: z.number().int().positive().max(1).optional(),
   voiceover: z.boolean().default(true),
   durationSec: z.number().int().positive().max(30).default(30)
+});
+
+export const horrorStoryRequestSchema = z.object({
+  language: languageCodeSchema,
+  style: horrorStyleSchema.default('campfire'),
+  voiceover: z.boolean().default(true),
+  visualization: z.boolean().default(true)
+});
+
+export const horrorStoryDraftSchema = z.object({
+  title: z.string().min(3),
+  story: z.string().min(100),
+  description: z.string().min(10),
+  tags: z.array(z.string().min(2)).min(1),
+  visualMotifs: z.array(z.string().min(2)).min(3).max(10)
 });

@@ -15,6 +15,15 @@ const ctaMarkersByLanguage: Record<LanguageCode, string[]> = {
   it: ['salva', 'seguimi', 'torna a questo']
 };
 
+const readableCtaMarkersByLanguage: Record<LanguageCode, string[]> = {
+  en: ['save this', 'follow for more', 'come back to this'],
+  ru: ['\u0441\u043e\u0445\u0440\u0430\u043d\u0438', '\u043f\u043e\u0434\u043f\u0438\u0448\u0438\u0441\u044c', '\u0432\u0435\u0440\u043d\u0438\u0441\u044c \u043a \u044d\u0442\u043e\u043c\u0443'],
+  kk: ['\u0441\u0430\u049b\u0442\u0430\u043f', '\u0436\u0430\u0437\u044b\u043b\u044b\u043f', '\u043a\u0435\u0439\u0456\u043d \u049b\u0430\u0439\u0442\u0430'],
+  de: ['speicher', 'folge', 'komm darauf zuruck'],
+  es: ['guarda', 'sigueme', 'vuelve a esto'],
+  it: ['salva', 'seguimi', 'torna a questo']
+};
+
 function normalize(value: string) {
   return String(value || '')
     .toLowerCase()
@@ -29,7 +38,8 @@ function countWords(value: string) {
 
 function containsCtaLikePhrase(value: string, language: LanguageCode) {
   const text = normalize(value);
-  return ctaMarkersByLanguage[language].some((marker) => text.includes(marker));
+  return readableCtaMarkersByLanguage[language].some((marker) => text.includes(marker))
+    || ctaMarkersByLanguage[language].some((marker) => text.includes(marker));
 }
 
 function detectLanguageMatch(value: string, language: LanguageCode) {
@@ -37,11 +47,11 @@ function detectLanguageMatch(value: string, language: LanguageCode) {
   if (!text) return true;
 
   if (language === 'ru') {
-    return /[А-Яа-яЁё]/.test(text);
+    return /[\u0410-\u042f\u0430-\u044f\u0401\u0451]/.test(text);
   }
 
   if (language === 'kk') {
-    return /[ӘәҒғҚқҢңӨөҰұҮүІі]/.test(text) || /[А-Яа-яЁё]/.test(text);
+    return /[\u04d8\u04d9\u0492\u0493\u049a\u049b\u04a2\u04a3\u04e8\u04e9\u04b0\u04b1\u04ae\u04af\u04ba\u04bb\u0406\u0456]/.test(text) || /[\u0410-\u042f\u0430-\u044f\u0401\u0451]/.test(text);
   }
 
   if (language === 'en') {

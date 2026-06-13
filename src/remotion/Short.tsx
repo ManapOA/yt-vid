@@ -9,9 +9,30 @@ function fitTitleSize(text: string) {
   return 92;
 }
 
-function getSceneWindow(durationInFrames: number, count: number) {
-  const safeCount = Math.max(1, count);
-  return Math.max(30, Math.floor(durationInFrames / safeCount));
+function fitSubtitleSize(text: string) {
+  const words = text.split(/\s+/).filter(Boolean).length;
+  if (words >= 22 || text.length > 150) return 28;
+  if (words >= 17 || text.length > 115) return 31;
+  if (words >= 13 || text.length > 85) return 34;
+  return 38;
+}
+
+function getSceneTimings(lines: string[], durationInFrames: number) {
+  const weights = lines.map((line) => Math.max(5, line.split(/\s+/).filter(Boolean).length));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+  let cursor = 0;
+
+  return weights.map((weight, index) => {
+    const remainingFrames = durationInFrames - cursor;
+    const remainingScenes = weights.length - index;
+    const proportionalFrames = Math.round((durationInFrames * weight) / totalWeight);
+    const duration = index === weights.length - 1
+      ? remainingFrames
+      : Math.max(30, Math.min(proportionalFrames, remainingFrames - (remainingScenes - 1) * 30));
+    const timing = { startFrame: cursor, duration };
+    cursor += duration;
+    return timing;
+  });
 }
 
 export function YtVidShort({
@@ -30,8 +51,8 @@ export function YtVidShort({
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const titleSize = fitTitleSize(script.title);
-  const visualLines = script.onScreenText.slice(0, 3);
-  const sceneWindow = getSceneWindow(durationInFrames, Math.max(1, visualLines.length));
+  const visualLines = script.onScreenText.filter((line) => line.trim());
+  const sceneTimings = getSceneTimings(visualLines, durationInFrames);
   const glow = interpolate(frame, [0, durationInFrames * 0.4, durationInFrames], [0.14, 0.26, 0.18], {
     easing: Easing.out(Easing.cubic)
   });
@@ -57,19 +78,16 @@ export function YtVidShort({
         }}
       />
 
-      <AbsoluteFill style={{ padding: '68px 64px 248px 64px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 24, letterSpacing: 3, opacity: 0.84 }}>
-          <span>{script.durationSeconds}s</span>
-          <span>{script.language.toUpperCase()}</span>
-        </div>
-
-        <div style={{ marginTop: 56 }}>
+      <AbsoluteFill style={{ padding: '132px 64px 190px 64px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
           <div
             style={{
               fontSize: titleSize,
               lineHeight: 0.94,
               fontWeight: 800,
               maxWidth: 900,
+              width: '100%',
+              textAlign: 'center',
               textWrap: 'balance',
               opacity: titleOpacity,
               transform: `translateY(${titleTranslate}px)`,
@@ -84,7 +102,7 @@ export function YtVidShort({
           style={{
             position: 'relative',
             marginTop: 54,
-            height: 500,
+            height: 650,
             overflow: 'hidden'
           }}
         >
@@ -93,9 +111,9 @@ export function YtVidShort({
               fps={fps}
               frame={frame}
               key={`${line}-${index}`}
-              sceneIndex={index}
+              startFrame={sceneTimings[index]?.startFrame || 0}
               text={line}
-              windowSize={sceneWindow}
+              windowSize={sceneTimings[index]?.duration || durationInFrames}
             />
           ))}
         </div>
@@ -120,18 +138,6 @@ export function YtVidShort({
             />
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gap: 8,
-              alignItems: 'flex-start'
-            }}
-          >
-            {visualLines.map((item, index) => (
-              <AnimatedCaptionLine frame={frame} fps={fps} index={index} key={`${item}-${index}`} text={item} />
-            ))}
-          </div>
-
           {design.ctaPresentation.showOnScreenCta && design.ctaPresentation.onScreenCtaText ? (
             <div
               style={{
@@ -154,16 +160,16 @@ function SceneSubtitle({
   text,
   frame,
   fps,
-  sceneIndex,
+  startFrame,
   windowSize
 }: {
   text: string;
   frame: number;
   fps: number;
-  sceneIndex: number;
+  startFrame: number;
   windowSize: number;
 }) {
-  const localFrame = frame - sceneIndex * windowSize;
+  const localFrame = frame - startFrame;
   const enter = spring({ fps, frame: localFrame, config: { damping: 20, stiffness: 170 } });
   const exitStart = Math.max(12, windowSize - 16);
   const exitProgress = interpolate(localFrame, [exitStart, windowSize], [0, 1], {
@@ -189,20 +195,23 @@ function SceneSubtitle({
         position: 'absolute',
         inset: 0,
         display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'flex-start',
+        alignItems: 'center',
+        justifyContent: 'center',
         pointerEvents: 'none',
         opacity,
-        paddingBottom: 26
+        padding: '18px 0'
       }}
     >
       <div
         style={{
           maxWidth: 900,
-          fontSize: 38,
-          lineHeight: 1.08,
+          width: '100%',
+          fontSize: fitSubtitleSize(text),
+          lineHeight: 1.12,
           fontWeight: 700,
           letterSpacing,
+          textAlign: 'center',
+          textWrap: 'balance',
           color: 'rgba(255,255,255,0.98)',
           textShadow: '0 10px 30px rgba(0,0,0,0.42)',
           transform: `translateY(${translateYIn + translateYOut}px)`
@@ -211,41 +220,5 @@ function SceneSubtitle({
         {text}
       </div>
     </div>
-  );
-}
-
-function AnimatedCaptionLine({
-  text,
-  frame,
-  fps,
-  index
-}: {
-  text: string;
-  frame: number;
-  fps: number;
-  index: number;
-}) {
-  const localFrame = frame - index * 4;
-  const enter = spring({ fps, frame: localFrame, config: { damping: 20, stiffness: 170 } });
-  const opacity = interpolate(enter, [0, 1], [0, 1]);
-  const translateY = interpolate(enter, [0, 1], [18, 0]);
-  const scaleX = interpolate(enter, [0, 1], [0.92, 1]);
-
-  return (
-    <span
-      style={{
-        fontSize: 18,
-        lineHeight: 1.15,
-        maxWidth: 620,
-        paddingLeft: 14,
-        borderLeft: '2px solid rgba(255,255,255,0.46)',
-        opacity,
-        transform: `translateY(${translateY}px) scaleX(${scaleX})`,
-        transformOrigin: 'left center',
-        color: 'rgba(255,255,255,0.92)'
-      }}
-    >
-      {text}
-    </span>
   );
 }

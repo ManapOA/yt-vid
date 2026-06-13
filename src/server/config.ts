@@ -11,14 +11,21 @@ export const config = {
   root,
   port: Number(process.env.PORT || 3000),
   appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:3000',
-  llmProvider: process.env.LLM_PROVIDER || 'openrouter',
+  llmProvider: process.env.LLM_PROVIDER || 'cerebras',
+  cerebras: {
+    apiKey: process.env.CEREBRAS_API_KEY || '',
+    model: process.env.CONTENT_MODEL || process.env.CEREBRAS_MODEL || 'gpt-oss-120b',
+    baseUrl: process.env.CEREBRAS_BASE_URL || 'https://api.cerebras.ai/v1'
+  },
   openrouter: {
     apiKey: process.env.OPENROUTER_API_KEY || '',
-    model: process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini',
+    model: process.env.OPENROUTER_MODEL || 'moonshotai/kimi-k2.6:free',
     baseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
     siteUrl: process.env.OPENROUTER_SITE_URL || 'http://localhost:3000',
     appName: process.env.OPENROUTER_APP_NAME || 'yt-vid'
   },
+  contentModel: process.env.CONTENT_MODEL || process.env.CEREBRAS_MODEL || 'gpt-oss-120b',
+  codeModel: process.env.CODE_MODEL || 'qwen/qwen3-coder',
   gemini: {
     apiKey: process.env.GEMINI_API_KEY || '',
     model: process.env.GEMINI_MODEL || 'gemini-2.0-flash'
@@ -55,6 +62,7 @@ export const config = {
   gptSovitsEndpoint: process.env.GPT_SOVITS_ENDPOINT || '',
   dataDir: path.join(root, 'data'),
   outputRoot: path.join(root, 'output', 'runs'),
+  videoExportDir: path.resolve(root, process.env.VIDEO_EXPORT_DIR || path.join('Video', 'Youtube')),
   publicBundleDir: path.join(root, 'public', 'remotion-bundle'),
   publicRenderAssetsDir: path.join(root, 'public', 'render-assets'),
   musicDir: path.join(root, 'music')

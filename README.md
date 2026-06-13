@@ -1,21 +1,31 @@
 # yt-vid
 
-`yt-vid` is a new standalone project that combines the production video pipeline patterns from `youtube-shorts-factory` with the dashboard/orchestration direction-first UX from `video-agent`.
+`yt-vid` is a local YouTube Shorts factory built with TypeScript, Express, React, and Remotion. The product flow is now automatic: choose a theme, choose a language, toggle voiceover, and generate a complete Shorts package.
 
-## Pipeline
+## Workflow
 
-1. User selects one of 5 video directions.
-2. System generates fresh topic candidates with Gemini/OpenRouter fallback logic.
-3. Topic history is checked and duplicates are filtered.
-4. User chooses a topic or enters a custom topic.
-5. Script is generated.
-6. Script is expanded to selected languages.
-7. User edits hook, body, CTA, title, description, tags, and on-screen text.
-8. Design package is built.
-9. Cartesia voiceover artifacts are created when voiceover is enabled.
-10. Hermes regression checks run before render.
-11. Remotion renders the final MP4 package.
-12. A YouTube package is saved with metadata.
+1. Open `http://localhost:3000`.
+2. Select `Theme`.
+3. Select `Language`.
+4. Toggle `Voiceover`.
+5. Click `Generate video`.
+6. The server generates the trend topic, script material, voiceover, poster facts, on-screen text, YouTube metadata, and final video.
+
+Technical run archives are kept in `output/runs/<runId>/`. User-ready YouTube packages are exported to:
+
+```text
+Video/Youtube/<safe-topic>_<YYYY-MM-DD>_<HH-mm>/
+```
+
+Each exported package contains:
+
+```text
+video.mp4
+upload.txt
+metadata.json
+```
+
+`upload.txt` contains only upload-ready title, description, tags, topic, language, and creation date.
 
 ## Setup
 
@@ -25,131 +35,57 @@ cp .env.example .env
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+## Models
 
-## Auto Video Factory
+Runtime content generation defaults to Cerebras Inference. Cerebras is used for topic discovery, short-form material, YouTube metadata, and any legacy script generation path. Voiceover still uses Cartesia, and final video rendering still uses Remotion.
 
-The app now includes an Auto Video Factory mode:
-
-1. Pick a niche or `random`.
-2. Pick a language.
-3. Click `Generate Auto Video`.
-4. The server generates topic, material, poster facts, voiceover, captions, music-backed render, and saves the result into `output/runs/<runId>/`.
-
-Artifacts saved for auto runs:
-
-- `material.json`
-- `poster.json`
-- `voiceover.json`
-- `render-input.json`
-- `youtube-metadata.json`
-- `run-manifest.json`
-- `video.mp4`
-
-## Env Variables
-
-- `PORT`
-- `APP_BASE_URL`
-- `LLM_PROVIDER`
-- `OPENROUTER_API_KEY`
-- `OPENROUTER_MODEL`
-- `OPENROUTER_BASE_URL`
-- `OPENROUTER_SITE_URL`
-- `OPENROUTER_APP_NAME`
-- `GEMINI_API_KEY`
-- `GEMINI_MODEL`
-- `CARTESIA_API_KEY`
-- `CARTESIA_MODEL`
-- `CARTESIA_VERSION`
-- `CARTESIA_VOICE_ID_EN`
-- `CARTESIA_VOICE_ID_RU`
-- `CARTESIA_VOICE_ID_KK`
-- `CARTESIA_VOICE_ID_DE`
-- `CARTESIA_VOICE_ID_ES`
-- `CARTESIA_VOICE_ID_IT`
-- `CARTESIA_OUTPUT_CONTAINER`
-- `CARTESIA_OUTPUT_ENCODING`
-- `CARTESIA_SAMPLE_RATE`
-- `CARTESIA_BIT_RATE`
-- `OPEN_DESIGN_ENDPOINT`
-- `DEFAULT_LANGUAGES`
-- `DEFAULT_DIRECTION`
-- `DEFAULT_DURATION_SECONDS`
-- `MUSIC_VOLUME`
-- `VOICEOVER_ENABLED`
-
-## Hermes Memory System
-
-Hermes files live in `data/hermes/`:
-
-- `rules.json`
-- `fixes.json`
-- `known-bugs.json`
-- `decisions.json`
-
-Runtime modules live in `src/server/hermes/`:
-
-- `memory.ts`
-- `rules.ts`
-- `decisions.ts`
-- `regression-checks.ts`
-
-Hermes stores rules, fix notes, decisions, and known bugs. Before render, Hermes runs regression checks and writes `hermes-checks.json` into the run folder. Any `high` or `critical` rule violation blocks render.
-
-## CTA Rule
-
-Centralized CTA policy lives in `src/server/pipeline/cta-policy.ts`.
-
-- If `hasVoiceover === true`, CTA is appended into `voiceoverText` when needed and is not rendered as an on-screen CTA block.
-- If `hasVoiceover === false`, CTA may render visually.
-
-This behavior is covered by tests.
-
-## Project Structure
-
-```text
-src/
-  app/
-  components/
-  remotion/
-  server/
-    pipeline/
-    hermes/
-    providers/
-    storage/
-  shared/
-data/
-  hermes/
-output/
-  runs/
+```env
+LLM_PROVIDER=cerebras
+CONTENT_MODEL=gpt-oss-120b
+CEREBRAS_API_KEY=
+CEREBRAS_MODEL=gpt-oss-120b
+CEREBRAS_BASE_URL=https://api.cerebras.ai/v1
+CODE_MODEL=qwen/qwen3-coder
+VIDEO_EXPORT_DIR=Video/Youtube
 ```
+
+Recommended Cerebras models:
+
+- `gpt-oss-120b`: default production model for smarter, stable video topics and scripts.
+- `zai-glm-4.7`: optional preview model for experiments; not recommended as the default production setting.
+
+`CODE_MODEL` is reserved for future code-agent tasks and is not used by the video runtime pipeline. `OPENROUTER_MODEL` remains supported as a backward-compatible fallback, but new configuration should prefer Cerebras through `CONTENT_MODEL`.
 
 ## API
 
 - `GET /api/bootstrap`
 - `GET /api/runs`
-- `POST /api/topics/generate`
-- `POST /api/script/generate`
-- `POST /api/script/humanize`
-- `POST /api/voiceover/create`
-- `POST /api/video/render`
-- `POST /api/agent/create-video`
-- `POST /api/runs/auto`
 - `GET /api/runs/:runId`
+- `POST /api/runs/auto`
+- `POST /api/topics/generate`
+- `POST /api/voiceover/create`
 - `GET /api/hermes/memory`
 - `POST /api/hermes/fix-note`
 - `POST /api/hermes/check-run`
 
-## Windows Helpers
+Deprecated manual endpoints return `410`:
 
-- `start-yt-vid.bat`
-- `stop-yt-vid.bat`
-- `scripts/create-desktop-shortcut.ps1`
+- `POST /api/script/generate`
+- `POST /api/script/humanize`
+- `POST /api/video/render`
+- `POST /api/agent/create-video`
 
-## TODO Roadmap
+## Guarantees
 
-- Real multilingual translation quality pass via provider prompts per language.
-- Real background music selection and mix controls.
-- Richer topic history analytics and novelty scoring.
-- Open Design remote service integration instead of local theme mapping.
-- Better run inspection UI with artifact previews and downloadable metadata.
+- Auto videos target 30 seconds or less.
+- CTA stays in voiceover only when voiceover is enabled.
+- CTA is blocked from poster facts and on-screen text.
+- `output/runs` remains the technical archive.
+- `Video/Youtube` is the user-facing export folder.
+
+## Verification
+
+```bash
+npm run typecheck
+npm test
+```

@@ -45,19 +45,28 @@ const fallbackDescriptions: Record<LanguageCode, string> = {
   it: 'Short di YouTube breve con ritmo parlato naturale.'
 };
 
+const fallbackTitles: Record<LanguageCode, string> = {
+  en: 'The quiet pattern behind mixed signals',
+  ru: '\u0422\u0438\u0445\u0438\u0439 \u043f\u0430\u0442\u0442\u0435\u0440\u043d \u0432 \u044d\u043c\u043e\u0446\u0438\u044f\u0445',
+  kk: '\u042d\u043c\u043e\u0446\u0438\u044f\u0434\u0430\u0493\u044b \u0442\u044b\u043d\u044b\u0448 \u043f\u0430\u0442\u0442\u0435\u0440\u043d',
+  de: 'Das stille Muster hinter gemischten Signalen',
+  es: 'El patron silencioso detras de las senales mixtas',
+  it: 'Il pattern silenzioso dietro i segnali misti'
+};
+
 function trimSentence(value: string) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
 function buildFallbackMaterial(direction: Direction, topic: string, language: LanguageCode, durationSec: number): AutoMaterial {
-  const title = topic[0]?.toUpperCase() + topic.slice(1);
+  const title = language === 'en' ? topic[0]?.toUpperCase() + topic.slice(1) : fallbackTitles[language];
   const facts = fallbackBodies[language].map(trimSentence).slice(0, 3);
   const cta = CTA_FALLBACK[language];
   const voiceBody = fallbackBodies[language].slice(0, 2).map(trimSentence);
   const voiceoverText = [...voiceBody, cta].join(' ');
 
   return {
-    topic,
+    topic: language === 'en' ? topic : title,
     poster: {
       title,
       facts

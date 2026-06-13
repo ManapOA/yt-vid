@@ -2,12 +2,17 @@ import { config } from '../config';
 import type { TextGenerationSettings } from '../../shared/types';
 
 export function resolveTextSettings(settings?: Partial<TextGenerationSettings> | null) {
-  const provider = settings?.provider === 'gemini' || settings?.provider === 'openrouter'
+  const provider = settings?.provider === 'cerebras' || settings?.provider === 'gemini' || settings?.provider === 'openrouter'
     ? settings.provider
-    : config.llmProvider === 'gemini' ? 'gemini' : 'openrouter';
+    : config.llmProvider === 'gemini' ? 'gemini' : config.llmProvider === 'openrouter' ? 'openrouter' : 'cerebras';
 
   return {
     provider,
+    cerebras: {
+      ...config.cerebras,
+      apiKey: provider === 'cerebras' && settings?.apiKey?.trim() ? settings.apiKey.trim() : config.cerebras.apiKey,
+      model: provider === 'cerebras' && settings?.model?.trim() ? settings.model.trim() : config.cerebras.model
+    },
     openrouter: {
       ...config.openrouter,
       apiKey: provider === 'openrouter' && settings?.apiKey?.trim() ? settings.apiKey.trim() : config.openrouter.apiKey,

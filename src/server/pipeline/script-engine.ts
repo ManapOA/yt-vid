@@ -1,4 +1,5 @@
 import { CTA_FALLBACK } from '../../shared/constants';
+import { generatePlainWithCerebras, generateWithCerebras, cerebrasSchemas } from '../providers/cerebras';
 import { generateWithGemini } from '../providers/gemini';
 import { generateWithOpenRouter, openRouterSchemas } from '../providers/openrouter';
 import { resolveTextSettings } from '../providers/text-settings';
@@ -133,6 +134,19 @@ async function translateTopic(topic: string, language: LanguageCode, textSetting
   ].join('\n');
 
   try {
+    if (resolvedTextSettings.provider === 'cerebras' && resolvedTextSettings.cerebras.apiKey) {
+      const text = await generatePlainWithCerebras({
+        prompt,
+        fallback: topic,
+        model: resolvedTextSettings.cerebras.model,
+        apiKey: resolvedTextSettings.cerebras.apiKey,
+        baseUrl: resolvedTextSettings.cerebras.baseUrl,
+        temperature: 0.2,
+        maxCompletionTokens: 220
+      });
+      if (text) return repairMojibake(text.replace(/^["']|["']$/g, ''));
+    }
+
     if (resolvedTextSettings.provider === 'gemini' && resolvedTextSettings.gemini.apiKey) {
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${resolvedTextSettings.gemini.model}:generateContent?key=${resolvedTextSettings.gemini.apiKey}`, {
         method: 'POST',
@@ -398,7 +412,16 @@ export async function generateScript(direction: Direction, topic: string, langua
     'Return {"language","direction","topic","durationSeconds","hook","body","cta","voiceoverText","onScreenText","title","description","tags"}.'
   ].join('\n');
 
-  const generated = await (resolvedTextSettings.provider === 'gemini'
+  const generated = await (resolvedTextSettings.provider === 'cerebras'
+    ? generateWithCerebras({
+      prompt,
+      fallback,
+      schema: cerebrasSchemas.script,
+      model: resolvedTextSettings.cerebras.model,
+      apiKey: resolvedTextSettings.cerebras.apiKey,
+      baseUrl: resolvedTextSettings.cerebras.baseUrl
+    })
+    : resolvedTextSettings.provider === 'gemini'
     ? generateWithGemini({
       prompt,
       fallback,

@@ -1,3 +1,4 @@
+import { generateWithCerebras, cerebrasSchemas } from '../providers/cerebras';
 import { generateWithGemini } from '../providers/gemini';
 import { generateWithOpenRouter, openRouterSchemas } from '../providers/openrouter';
 import { resolveTextSettings } from '../providers/text-settings';
@@ -118,10 +119,20 @@ export async function generateTopicCandidates(direction: Direction, language: La
     `Do not reuse or lightly reword these recent topics: ${recentHistory.slice(0, 25).join(' | ') || 'none'}.`,
     'Make every request feel new. Avoid returning the default seed phrases.',
     'Avoid stale repeats and generic topics.',
+    'noveltyScore must be a decimal from 0 to 1, for example 0.87. Do not use 87 or percentages.',
     'Return {"direction","language","topics":[{"topic","hook","angle","audience","noveltyScore","risk"}]}.'
   ].join('\n');
 
-  const generated = resolvedTextSettings.provider === 'gemini'
+  const generated = resolvedTextSettings.provider === 'cerebras'
+    ? await generateWithCerebras({
+      prompt,
+      fallback,
+      schema: cerebrasSchemas.topics,
+      model: resolvedTextSettings.cerebras.model,
+      apiKey: resolvedTextSettings.cerebras.apiKey,
+      baseUrl: resolvedTextSettings.cerebras.baseUrl
+    })
+    : resolvedTextSettings.provider === 'gemini'
     ? await generateWithGemini({
       prompt,
       fallback,
