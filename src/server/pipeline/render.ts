@@ -3,9 +3,10 @@ import path from 'node:path';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
 import { config } from '../config';
-import { runRegressionChecks } from '../hermes/regression-checks';
 import type { DesignPackage, MultiScriptPackage } from '../../shared/types';
 import { getWavDurationSec } from './audio-duration';
+import { selectAutoBackground } from './media-library';
+import { loadVideoFonts } from './video-fonts';
 
 async function createBundle() {
   return bundle({
@@ -15,6 +16,12 @@ async function createBundle() {
 
 function getMimeType(filePath: string) {
   const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.png') return 'image/png';
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.webp') return 'image/webp';
+  if (ext === '.woff2') return 'font/woff2';
+  if (ext === '.woff') return 'font/woff';
+  if (ext === '.ttf') return 'font/ttf';
   if (ext === '.mp3') return 'audio/mpeg';
   if (ext === '.ogg') return 'audio/ogg';
   if (ext === '.aac') return 'audio/aac';
@@ -67,27 +74,18 @@ export async function renderVideoRun({
   runDir,
   bundleData,
   design,
-  musicFile,
-  autoContext
+  musicFile
 }: {
   runDir: string;
   bundleData: MultiScriptPackage;
   design: DesignPackage;
   musicFile: string | null;
-  autoContext?: {
-    material: {
-      voiceover: { text: string; cta: string };
-      poster: { title: string; facts: string[] };
-      onScreenText: string[];
-      rules: { maxDurationSec: number; language: string };
-    };
-    language: string;
-    requestedDurationSec: number;
-  };
 }) {
-  await runRegressionChecks({ runDir, design, autoContext });
   const outputs: Record<string, string> = {};
   const stagedMusicFile = await fileToDataUrl(musicFile);
+  const videoFonts = await loadVideoFonts(async (filePath) => (
+    (await fileToDataUrl(filePath))!
+  ));
   const stagedVoiceFiles: Record<string, string | null> = {};
   const voiceFilePaths: Record<string, string | null> = {};
 
@@ -113,6 +111,8 @@ export async function renderVideoRun({
       ...script,
       durationSeconds: Math.max(3, Number(effectiveDurationSec.toFixed(2)))
     };
+    const selectedBackground = selectAutoBackground(design.directionId, script.topic);
+    const backgroundMedia = await fileToDataUrl(selectedBackground.path);
     const composition = await selectComposition({
       serveUrl: site,
       id: 'YtVidShort',
@@ -121,7 +121,10 @@ export async function renderVideoRun({
         design,
         audioFile: stagedVoiceFile,
         musicFile: stagedMusicFile,
-        musicVolume: config.musicVolume
+        musicVolume: config.musicVolume,
+        backgroundMedia,
+        backgroundMediaKind: 'image',
+        ...videoFonts
       }
     });
 
@@ -135,7 +138,10 @@ export async function renderVideoRun({
         design,
         audioFile: stagedVoiceFile,
         musicFile: stagedMusicFile,
-        musicVolume: config.musicVolume
+        musicVolume: config.musicVolume,
+        backgroundMedia,
+        backgroundMediaKind: 'image',
+        ...videoFonts
       }
     });
     outputs[script.language] = outputLocation;

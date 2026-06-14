@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { config } from '../config';
 import type { RunRecord } from '../../shared/types';
-import { readJsonFile, slugify, timestampSlug, writeJsonFile } from '../utils';
+import { readJsonFile, resolvePathInside, slugify, timestampSlug, writeJsonFile } from '../utils';
 
 export async function createRunFolder(directionId: string, topic: string) {
   const folder = path.join(config.outputRoot, `run_${timestampSlug()}_${slugify(directionId)}_${slugify(topic).slice(0, 64)}`);
@@ -21,7 +21,9 @@ export async function saveRunRecord(runDir: string, run: RunRecord) {
 }
 
 export async function getRun(runId: string) {
-  return readJsonFile<RunRecord | null>(path.join(config.outputRoot, runId, 'run.json'), null);
+  const runDir = resolvePathInside(config.outputRoot, runId);
+  if (!runDir || path.basename(runDir) !== runId || !runId.startsWith('run_')) return null;
+  return readJsonFile<RunRecord | null>(path.join(runDir, 'run.json'), null);
 }
 
 export async function listRuns() {

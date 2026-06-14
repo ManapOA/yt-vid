@@ -26,23 +26,23 @@ const material: AutoMaterial = {
 };
 
 describe('captions engine', () => {
-  it('uses the complete voiceover body and excludes the CTA', () => {
+  it('uses concise generated caption beats and excludes the CTA', () => {
     const captions = buildOnScreenTextPayload(material);
     const renderedText = captions.join(' ');
 
-    expect(renderedText).toBe('First complete sentence. Second complete sentence has several useful words.');
+    expect(captions).toEqual(['Generated summary one', 'Generated summary two']);
     expect(renderedText).not.toContain(material.voiceover.cta);
-    expect(renderedText).not.toContain('Generated summary');
   });
 
   it('removes a trailing CTA despite punctuation and whitespace differences', () => {
     expect(removeTrailingCta('Body text.   SAVE this for later!', 'Save this for later.')).toBe('Body text.');
   });
 
-  it('keeps a long sentence whole on one screen', () => {
+  it('falls back to spoken sentences when generated captions are missing', () => {
     const longSentence = 'This complete sentence contains enough words that it previously would have been split and left one word on the next screen.';
     const captions = buildOnScreenTextPayload({
       ...material,
+      onScreenText: [],
       voiceover: {
         text: `${longSentence} ${material.voiceover.cta}`,
         cta: material.voiceover.cta

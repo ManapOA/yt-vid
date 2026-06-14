@@ -1,6 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+const jsonUpdateQueues = new Map<string, Promise<void>>();
+
 const cp1251ReverseMap = new Map<string, number>([
   ['Ђ', 0x80], ['Ѓ', 0x81], ['‚', 0x82], ['ѓ', 0x83], ['„', 0x84], ['…', 0x85], ['†', 0x86], ['‡', 0x87],
   ['€', 0x88], ['‰', 0x89], ['Љ', 0x8a], ['‹', 0x8b], ['Њ', 0x8c], ['Ќ', 0x8d], ['Ћ', 0x8e], ['Џ', 0x8f],
@@ -71,8 +73,54 @@ export async function readJsonFile<T>(filePath: string, fallback: T): Promise<T>
 }
 
 export async function writeJsonFile(filePath: string, value: unknown) {
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, `${JSON.stringify(repairMojibakeDeep(value), null, 2)}\n`, 'utf8');
+  const absolutePath = path.resolve(filePath);
+  const temporaryPath = `${absolutePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+  await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+
+  try {
+    await fs.writeFile(temporaryPath, `${JSON.stringify(repairMojibakeDeep(value), null, 2)}\n`, 'utf8');
+    await fs.rename(temporaryPath, absolutePath);
+  } catch (error) {
+    await fs.rm(temporaryPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function updateJsonFile<T>(
+  filePath: string,
+  fallback: T,
+  updater: (current: T) => T | Promise<T>
+) {
+  const absolutePath = path.resolve(filePath);
+  const previous = jsonUpdateQueues.get(absolutePath) || Promise.resolve();
+  const operation = previous
+    .catch(() => undefined)
+    .then(async () => {
+      const current = await readJsonFile(absolutePath, fallback);
+      const next = await updater(current);
+      await writeJsonFile(absolutePath, next);
+      return next;
+    });
+  const queueTail = operation.then(() => undefined, () => undefined);
+  jsonUpdateQueues.set(absolutePath, queueTail);
+
+  try {
+    return await operation;
+  } finally {
+    if (jsonUpdateQueues.get(absolutePath) === queueTail) {
+      jsonUpdateQueues.delete(absolutePath);
+    }
+  }
+}
+
+export function resolvePathInside(baseDir: string, childPath: string) {
+  const base = path.resolve(baseDir);
+  const candidate = path.resolve(base, childPath);
+  const relative = path.relative(base, candidate);
+  if (!relative || (!relative.startsWith('..') && !path.isAbsolute(relative))) {
+    return candidate;
+  }
+  return null;
 }
 
 export function clamp(value: number, min: number, max: number) {

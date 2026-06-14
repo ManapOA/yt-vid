@@ -6,8 +6,6 @@ import { config } from './src/server/config';
 import { DIRECTIONS, LANGUAGES, PROJECT_NAME } from './src/shared/constants';
 import { getHermesMemory } from './src/server/hermes/memory';
 import { appendHermesFix } from './src/server/hermes/decisions';
-import { runRegressionChecks } from './src/server/hermes/regression-checks';
-import { getHermesRules } from './src/server/hermes/rules';
 import { generateTopicsForDirection } from './src/server/pipeline';
 import { getRun, listRuns } from './src/server/storage/runs';
 import { autoVideoRequestSchema, horrorStoryRequestSchema } from './src/shared/schemas';
@@ -45,8 +43,7 @@ async function createApp() {
         cerebrasModel: config.cerebras.model,
         openrouterModel: config.openrouter.model,
         geminiModel: config.gemini.model
-      },
-      rules: await getHermesRules()
+      }
     });
   });
 
@@ -121,20 +118,6 @@ async function createApp() {
     res.json({ ok: true });
   });
 
-  app.post('/api/hermes/check-run', async (req, res) => {
-    try {
-      const tempDir = path.join(config.outputRoot, '_hermes_temp_check');
-      await fs.mkdir(tempDir, { recursive: true });
-      const result = await runRegressionChecks({
-        runDir: tempDir,
-        design: req.body.design
-      });
-      res.json(result);
-    } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : 'Hermes check failed' });
-    }
-  });
-
   app.use('*', async (req, res, next) => {
     try {
       const html = await fs.readFile(path.join(config.root, 'index.html'), 'utf8');
@@ -149,7 +132,7 @@ async function createApp() {
 }
 
 createApp().then((app) => {
-  app.listen(config.port, () => {
+  app.listen(config.port, config.host, () => {
     console.log(`${PROJECT_NAME} running at ${config.appBaseUrl}`);
   });
 });

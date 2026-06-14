@@ -62,7 +62,7 @@ export function App() {
       const data = await res.json();
       setRuns(data.runs || []);
     } catch {
-      setErrorMessage('Локальный сервер недоступен. Перезапустите приложение.');
+      setErrorMessage('Local server is unavailable. Restart the application.');
       setStatus('Server offline');
     }
   }
@@ -105,7 +105,7 @@ export function App() {
     } catch (error) {
       setErrorMessage(
         error instanceof TypeError
-          ? 'Локальный сервер недоступен. Перезапустите приложение.'
+          ? 'Local server is unavailable. Restart the application.'
           : error instanceof Error
             ? error.message
             : 'Auto video generation failed'

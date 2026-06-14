@@ -1,17 +1,33 @@
 import path from 'node:path';
 import dotenv from 'dotenv';
-import { LANGUAGES } from '../shared/constants';
-import type { LanguageCode } from '../shared/types';
+import type { LanguageCode, TextProviderId } from '../shared/types';
 
 dotenv.config();
 
 const root = process.cwd();
 
+function positiveNumber(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function boundedNumber(value: string | undefined, fallback: number, min: number, max: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+}
+
+function textProvider(value: string | undefined): TextProviderId {
+  return value === 'gemini' || value === 'openrouter' ? value : 'cerebras';
+}
+
 export const config = {
   root,
-  port: Number(process.env.PORT || 3000),
+  host: process.env.HOST || '127.0.0.1',
+  port: positiveNumber(process.env.PORT, 3000),
   appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:3000',
-  llmProvider: process.env.LLM_PROVIDER || 'cerebras',
+  llmProvider: textProvider(process.env.LLM_PROVIDER),
+  llmRequestTimeoutMs: positiveNumber(process.env.LLM_REQUEST_TIMEOUT_MS, 45000),
+  ttsRequestTimeoutMs: positiveNumber(process.env.TTS_REQUEST_TIMEOUT_MS, 60000),
   cerebras: {
     apiKey: process.env.CEREBRAS_API_KEY || '',
     model: process.env.CONTENT_MODEL || process.env.CEREBRAS_MODEL || 'gpt-oss-120b',
@@ -24,8 +40,6 @@ export const config = {
     siteUrl: process.env.OPENROUTER_SITE_URL || 'http://localhost:3000',
     appName: process.env.OPENROUTER_APP_NAME || 'yt-vid'
   },
-  contentModel: process.env.CONTENT_MODEL || process.env.CEREBRAS_MODEL || 'gpt-oss-120b',
-  codeModel: process.env.CODE_MODEL || 'qwen/qwen3-coder',
   gemini: {
     apiKey: process.env.GEMINI_API_KEY || '',
     model: process.env.GEMINI_MODEL || 'gemini-2.0-flash'
@@ -36,8 +50,8 @@ export const config = {
     version: process.env.CARTESIA_VERSION || '2026-03-01',
     outputContainer: process.env.CARTESIA_OUTPUT_CONTAINER || 'wav',
     outputEncoding: process.env.CARTESIA_OUTPUT_ENCODING || 'pcm_s16le',
-    sampleRate: Number(process.env.CARTESIA_SAMPLE_RATE || 44100),
-    bitRate: Number(process.env.CARTESIA_BIT_RATE || 128000),
+    sampleRate: positiveNumber(process.env.CARTESIA_SAMPLE_RATE, 44100),
+    bitRate: positiveNumber(process.env.CARTESIA_BIT_RATE, 128000),
     voices: {
       en: process.env.CARTESIA_VOICE_ID_EN || '',
       ru: process.env.CARTESIA_VOICE_ID_RU || '',
@@ -47,23 +61,9 @@ export const config = {
       it: process.env.CARTESIA_VOICE_ID_IT || ''
     } satisfies Record<LanguageCode, string>
   },
-  defaultLanguages: (process.env.DEFAULT_LANGUAGES || LANGUAGES.map((item) => item.code).join(','))
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean) as LanguageCode[],
-  defaultDirection: process.env.DEFAULT_DIRECTION || 'self-awareness',
-  defaultDurationSeconds: Number(process.env.DEFAULT_DURATION_SECONDS || 20),
-  voiceoverEnabled: process.env.VOICEOVER_ENABLED !== '0',
-  musicVolume: Number(process.env.MUSIC_VOLUME || 0.1),
-  hermesEndpoint: process.env.HERMES_ENDPOINT || '',
-  storycraftrEndpoint: process.env.STORYCRAFTR_ENDPOINT || '',
-  openDesignEndpoint: process.env.OPEN_DESIGN_ENDPOINT || '',
-  remotionEndpoint: process.env.REMOTION_ENDPOINT || '',
-  gptSovitsEndpoint: process.env.GPT_SOVITS_ENDPOINT || '',
+  musicVolume: boundedNumber(process.env.MUSIC_VOLUME, 0.1, 0, 1),
   dataDir: path.join(root, 'data'),
   outputRoot: path.join(root, 'output', 'runs'),
   videoExportDir: path.resolve(root, process.env.VIDEO_EXPORT_DIR || path.join('Video', 'Youtube')),
-  publicBundleDir: path.join(root, 'public', 'remotion-bundle'),
-  publicRenderAssetsDir: path.join(root, 'public', 'render-assets'),
   musicDir: path.join(root, 'music')
 };

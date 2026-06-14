@@ -4,7 +4,7 @@ import { config } from '../config';
 import { synthesizeCartesiaVoice } from '../providers/cartesia';
 import type { MultiScriptPackage, VoiceArtifact } from '../../shared/types';
 import { formatVoiceoverForSpeech } from './speech';
-import { getWavDurationSecFromBuffer } from './audio-duration';
+import { getWavDurationSecFromBuffer, isWavBuffer } from './audio-duration';
 
 export async function createVoiceovers(runDir: string, bundle: MultiScriptPackage) {
   const artifacts: VoiceArtifact[] = [];
@@ -23,10 +23,11 @@ export async function createVoiceovers(runDir: string, bundle: MultiScriptPackag
       language: script.language,
       transcript
     });
-    const fileName = `voice-${script.language}.${config.cartesia.outputContainer === 'mp3' ? 'mp3' : 'wav'}`;
+    const isWav = isWavBuffer(bytes);
+    const fileName = `voice-${script.language}.${isWav ? 'wav' : 'mp3'}`;
     const absolutePath = path.join(runDir, fileName);
     await fs.writeFile(absolutePath, bytes);
-    const durationSec = config.cartesia.outputContainer === 'wav'
+    const durationSec = isWav
       ? getWavDurationSecFromBuffer(bytes)
       : null;
 

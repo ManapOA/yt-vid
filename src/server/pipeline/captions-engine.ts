@@ -27,9 +27,18 @@ export function removeTrailingCta(text: string, cta: string) {
 }
 
 export function buildOnScreenTextPayload(material: AutoMaterial) {
+  const generatedCaptions = material.onScreenText
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item) => normalizeForComparison(item) !== normalizeForComparison(material.voiceover.cta))
+    .slice(0, 4);
+
+  if (generatedCaptions.length >= 2) return generatedCaptions;
+
   const body = removeTrailingCta(material.voiceover.text, material.voiceover.cta);
   return body
     .split(/(?<=[.!?])\s+/)
     .map((item) => item.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, 4);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getWavDurationSecFromBuffer } from '../src/server/pipeline/audio-duration';
+import { getWavDurationSecFromBuffer, isWavBuffer } from '../src/server/pipeline/audio-duration';
 
 function createWavWithDataChunkSize(seconds: number, dataChunkSize: number) {
   const sampleRate = 44100;
@@ -35,6 +35,11 @@ describe('getWavDurationSecFromBuffer', () => {
   it('uses the actual remaining bytes when a streamed WAV has an open-ended data chunk', () => {
     const buffer = createWavWithDataChunkSize(15, 0xffffffff);
 
+    expect(isWavBuffer(buffer)).toBe(true);
     expect(getWavDurationSecFromBuffer(buffer)).toBe(15);
+  });
+
+  it('does not identify arbitrary bytes as WAV audio', () => {
+    expect(isWavBuffer(Buffer.from('not audio'))).toBe(false);
   });
 });

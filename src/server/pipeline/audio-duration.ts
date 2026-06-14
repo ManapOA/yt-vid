@@ -1,7 +1,13 @@
 import fs from 'node:fs/promises';
 
+export function isWavBuffer(buffer: Buffer) {
+  return buffer.length >= 12
+    && buffer.toString('ascii', 0, 4) === 'RIFF'
+    && buffer.toString('ascii', 8, 12) === 'WAVE';
+}
+
 export function getWavDurationSecFromBuffer(buffer: Buffer) {
-  if (buffer.length < 44 || buffer.toString('ascii', 0, 4) !== 'RIFF' || buffer.toString('ascii', 8, 12) !== 'WAVE') {
+  if (buffer.length < 44 || !isWavBuffer(buffer)) {
     return null;
   }
 

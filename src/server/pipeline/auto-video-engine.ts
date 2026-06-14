@@ -13,7 +13,6 @@ import type {
 } from '../../shared/types';
 import { appendHermesDecision } from '../hermes/decisions';
 import { createYouTubePackage } from './assembler';
-import { shortenVoiceoverText, validateAutoMaterial } from './auto-video-validation';
 import { buildOnScreenTextPayload } from './captions-engine';
 import { createDesign } from './design';
 import { generateAutoMaterial } from './material-engine';
@@ -70,6 +69,21 @@ function buildAutoScript(direction: Direction, material: AutoMaterial, durationS
     description: material.youtube.description,
     tags: material.youtube.tags
   };
+}
+
+function estimateVoiceoverDurationSec(text: string) {
+  const words = String(text || '').trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(12, Math.min(30, Math.ceil(words / 2.6)));
+}
+
+function shortenVoiceoverText(text: string, cta: string, targetWords = 52) {
+  const bodyWords = String(text || '')
+    .replace(cta, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const ctaWords = String(cta || '').trim().split(/\s+/).filter(Boolean);
+  return [...bodyWords.slice(0, Math.max(1, targetWords - ctaWords.length)), ...ctaWords].join(' ');
 }
 
 async function createAutoRunRecord({
@@ -143,9 +157,10 @@ export async function runAutoVideoPipeline(request: AutoVideoRequest): Promise<A
       durationSec: Math.min(30, request.durationSec)
     });
 
-    let { material, estimatedDurationSec } = await validateAutoMaterial(generatedMaterial);
+    let material = generatedMaterial;
+    let estimatedDurationSec = estimateVoiceoverDurationSec(material.voiceover.text);
     const effectiveDurationSec = Math.min(30, Math.max(12, Math.ceil(estimatedDurationSec)));
-    console.log(`[auto-video] material validated: ~${estimatedDurationSec}s`);
+    console.log(`[auto-video] material ready: ~${estimatedDurationSec}s`);
 
     const poster = buildPosterPayload(material);
     let script = buildAutoScript(direction, material, effectiveDurationSec);
@@ -190,12 +205,7 @@ export async function runAutoVideoPipeline(request: AutoVideoRequest): Promise<A
       runDir,
       bundleData: designBundle,
       design,
-      musicFile,
-      autoContext: {
-        material,
-        language: request.language,
-        requestedDurationSec: Math.min(30, request.durationSec)
-      }
+      musicFile
     });
 
     const renderedFile = renders[request.language];

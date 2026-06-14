@@ -1,4 +1,4 @@
-import { autoMaterialSchema, topicGenerationSchema, scriptSchema } from '../../shared/schemas';
+import { autoMaterialSchema, topicGenerationSchema } from '../../shared/schemas';
 import { generatePlainWithOpenAiCompatible, generateWithOpenAiCompatible } from './openai-compatible';
 
 const languageEnum = ['en', 'ru', 'de', 'es', 'it', 'kk'];
@@ -31,33 +31,6 @@ const topicResponseFormat = {
             }
           }
         }
-      }
-    }
-  }
-};
-
-const scriptResponseFormat = {
-  type: 'json_schema',
-  json_schema: {
-    name: 'short_script',
-    strict: true,
-    schema: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['language', 'direction', 'topic', 'durationSeconds', 'hook', 'body', 'cta', 'voiceoverText', 'onScreenText', 'title', 'description', 'tags'],
-      properties: {
-        language: { type: 'string', enum: languageEnum },
-        direction: { type: 'string' },
-        topic: { type: 'string' },
-        durationSeconds: { type: 'integer' },
-        hook: { type: 'string' },
-        body: { type: 'array', items: { type: 'string' } },
-        cta: { type: 'string' },
-        voiceoverText: { type: 'string' },
-        onScreenText: { type: 'array', items: { type: 'string' } },
-        title: { type: 'string' },
-        description: { type: 'string' },
-        tags: { type: 'array', items: { type: 'string' } }
       }
     }
   }
@@ -120,7 +93,6 @@ const autoMaterialResponseFormat = {
 
 function getResponseFormat(schema: { parse: (value: unknown) => unknown }) {
   if (schema === topicGenerationSchema) return topicResponseFormat;
-  if (schema === scriptSchema) return scriptResponseFormat;
   if (schema === autoMaterialSchema) return autoMaterialResponseFormat;
   return undefined;
 }
@@ -187,6 +159,5 @@ export async function generatePlainWithCerebras({
 }
 
 export const cerebrasSchemas = {
-  topics: topicGenerationSchema,
-  script: scriptSchema
+  topics: topicGenerationSchema
 };

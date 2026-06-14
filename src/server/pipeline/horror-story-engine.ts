@@ -8,7 +8,10 @@ import type {
 } from '../../shared/types';
 import { generateStructuredWithLlm } from '../providers/llm';
 
-const MAX_BODY_WORDS_PER_PART = 100;
+const TARGET_BODY_WORDS_PER_PART = 70;
+const MAX_SERIES_PARTS = 4;
+const MIN_STORY_WORDS = 120;
+const MAX_STORY_WORDS = 300;
 
 const styleDescriptions: Record<HorrorStyle, string> = {
   campfire: 'an intimate campfire tale that sounds believable when told aloud at night',
@@ -19,28 +22,28 @@ const styleDescriptions: Record<HorrorStyle, string> = {
 
 const ctaByLanguage: Record<LanguageCode, { next: string; final: string }> = {
   en: {
-    next: 'The next part is linked in the description. Subscribe so you do not miss it.',
-    final: 'Thank you for listening. Subscribe for more stories told after dark.'
+    next: 'The next part begins with what answered from the dark.',
+    final: 'Subscribe for another story after dark.'
   },
   ru: {
-    next: 'Ссылка на следующую часть в описании. Подпишись, чтобы не пропустить продолжение.',
-    final: 'Спасибо за просмотр. Подпишись, если хочешь больше страшных историй.'
+    next: 'В следующей части станет ясно, кто ответил из темноты.',
+    final: 'Подпишись на новую историю после заката.'
   },
   kk: {
-    next: 'Келесі бөлімге сілтеме сипаттамада. Жалғасын өткізіп алмау үшін жазыл.',
-    final: 'Көргеніңе рақмет. Тағы да қорқынышты оқиғалар үшін жазыл.'
+    next: 'Келесі бөлімде қараңғылықтан кім жауап бергені белгілі болады.',
+    final: 'Тағы бір қорқынышты оқиға үшін жазыл.'
   },
   de: {
-    next: 'Der Link zum nächsten Teil steht in der Beschreibung. Abonniere, damit du ihn nicht verpasst.',
-    final: 'Danke fürs Zuschauen. Abonniere für weitere Geschichten nach Einbruch der Dunkelheit.'
+    next: 'Im nächsten Teil zeigt sich, wer aus der Dunkelheit antwortete.',
+    final: 'Abonniere für eine weitere Geschichte nach Einbruch der Dunkelheit.'
   },
   es: {
-    next: 'El enlace a la siguiente parte está en la descripción. Suscríbete para no perderla.',
-    final: 'Gracias por escuchar. Suscríbete para más historias contadas en la oscuridad.'
+    next: 'La siguiente parte revela quién respondió desde la oscuridad.',
+    final: 'Suscríbete para otra historia después del anochecer.'
   },
   it: {
-    next: 'Il link alla parte successiva è nella descrizione. Iscriviti per non perderla.',
-    final: 'Grazie per aver ascoltato. Iscriviti per altre storie raccontate nel buio.'
+    next: 'La prossima parte rivela chi ha risposto dal buio.',
+    final: 'Iscriviti per un altra storia dopo il tramonto.'
   }
 };
 
@@ -57,10 +60,66 @@ function countWords(value: string) {
   return String(value || '').trim().split(/\s+/).filter(Boolean).length;
 }
 
-export function splitIntoSentences(value: string) {
+function desiredPartCount(totalWords: number) {
+  if (totalWords <= 85) return 1;
+  return Math.min(MAX_SERIES_PARTS, Math.max(2, Math.round(totalWords / TARGET_BODY_WORDS_PER_PART)));
+}
+
+function groupSentences(sentences: string[]) {
+  const totalWords = sentences.reduce((sum, sentence) => sum + countWords(sentence), 0);
+  const targetParts = desiredPartCount(totalWords);
+  const groups: string[][] = [];
+  let current: string[] = [];
+  let currentWords = 0;
+  let remainingWords = totalWords;
+
+  for (const sentence of sentences) {
+    const sentenceWords = countWords(sentence);
+    const remainingGroups = targetParts - groups.length;
+    const targetWords = Math.ceil(remainingWords / Math.max(1, remainingGroups));
+
+    if (current.length > 0 && groups.length < targetParts - 1 && currentWords + sentenceWords > targetWords) {
+      groups.push(current);
+      remainingWords -= currentWords;
+      current = [];
+      currentWords = 0;
+    }
+
+    current.push(sentence);
+    currentWords += sentenceWords;
+  }
+
+  if (current.length > 0) groups.push(current);
+  return groups;
+}
+
+function captionBeat(sentence: string) {
+  const clean = normalizeHorrorText(sentence);
+  const clause = clean.split(/[,;:—-]/)[0]?.trim() || clean;
+  const tokens = clause.split(/\s+/).filter(Boolean);
+  if (tokens.length <= 10) return clause;
+  return `${tokens.slice(0, 9).join(' ')}…`;
+}
+
+function buildHorrorCaptions(group: string[]) {
+  const candidates = group.map(captionBeat).filter(Boolean);
+  if (candidates.length <= 4) return candidates;
+  return [
+    candidates[0],
+    candidates[Math.floor(candidates.length / 2)],
+    candidates.at(-1)!
+  ];
+}
+
+export function normalizeHorrorText(value: string) {
   return String(value || '')
+    .replace(/\\r\\n|\\n|\\r|\\t/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim()
+    .trim();
+}
+
+export function splitIntoSentences(value: string) {
+  return normalizeHorrorText(value)
     .split(/(?<=[.!?…])\s+/)
     .map((sentence) => sentence.trim())
     .filter(Boolean);
@@ -108,46 +167,83 @@ function fallbackStory(language: LanguageCode): HorrorStoryDraft {
   };
 }
 
+function normalizeDraft(story: HorrorStoryDraft): HorrorStoryDraft {
+  return {
+    ...story,
+    title: normalizeHorrorText(story.title),
+    story: normalizeHorrorText(story.story),
+    description: normalizeHorrorText(story.description),
+    tags: story.tags.map(normalizeHorrorText).filter(Boolean),
+    visualMotifs: story.visualMotifs.map(normalizeHorrorText).filter(Boolean)
+  };
+}
+
+async function enforceHorrorStoryLength(
+  story: HorrorStoryDraft,
+  request: HorrorStoryRequest,
+  fallback: HorrorStoryDraft
+) {
+  const normalized = normalizeDraft(story);
+  const words = countWords(normalized.story);
+  if (words >= MIN_STORY_WORDS && words <= MAX_STORY_WORDS) return normalized;
+
+  const prompt = [
+    `Rewrite this horror story in language code ${request.language}.`,
+    `Keep it between ${MIN_STORY_WORDS} and ${MAX_STORY_WORDS} words.`,
+    'Preserve one coherent plot, the central threat, and the final visual reveal.',
+    'Open immediately with the anomaly or danger.',
+    'Deliver a reveal or irreversible escalation every 55-80 words.',
+    'Remove atmosphere-only setup, repetition, explanations, calls to action, and production notes.',
+    'Keep sentences concise and natural when spoken aloud.',
+    'Return the same JSON schema.',
+    JSON.stringify(normalized)
+  ].join('\n');
+
+  const rewritten = await generateStructuredWithLlm({
+    prompt,
+    fallback,
+    schema: horrorStoryDraftSchema
+  });
+  const result = normalizeDraft(rewritten);
+  const rewrittenWords = countWords(result.story);
+  if (rewrittenWords < MIN_STORY_WORDS || rewrittenWords > MAX_STORY_WORDS) {
+    return normalizeDraft(fallback);
+  }
+  return result;
+}
+
 export async function generateHorrorStory(request: HorrorStoryRequest) {
   const fallback = fallbackStory(request.language);
   const prompt = [
     `Write an original horror story in language code ${request.language}.`,
     `Style: ${styleDescriptions[request.style]}.`,
     'The story must sound natural when told aloud during an evening gathering around a fire.',
-    'Write one complete, coherent story before it is divided into videos.',
-    'Aim for 350 to 650 words, but let the narrative determine its natural length.',
-    'Use escalating tension, concrete sensory details, and a memorable ending.',
+    'Write one complete, coherent story designed for 2-4 short videos.',
+    'Use 180-280 words total.',
+    'The first sentence must contain the anomaly, warning, impossible detail, or immediate threat.',
+    'Never begin with weather, friends gathering, or general atmosphere.',
+    'Use escalating tension, concrete sensory details, and a memorable visual ending.',
+    'Every 55-80 words must deliver a reveal or irreversible escalation.',
+    'Prefer concrete threats, rules, objects, sounds, and actions over abstract mythology or poetic explanations.',
+    'Keep sentences concise and natural when spoken aloud.',
     'Do not include calls to action, part numbers, production notes, or markdown.',
     'Avoid graphic gore and avoid copying known fictional characters or existing stories.',
     'Return JSON with title, story, description, tags, and 3-10 short visualMotifs.'
   ].join('\n');
 
-  return generateStructuredWithLlm({
+  const story = await generateStructuredWithLlm({
     prompt,
     fallback,
     schema: horrorStoryDraftSchema
   });
+  return enforceHorrorStoryLength(story, request, fallback);
 }
 
 export function splitHorrorStoryIntoParts(story: HorrorStoryDraft, language: LanguageCode): HorrorStoryPart[] {
-  const sentences = splitIntoSentences(story.story);
-  const groups: string[][] = [];
-  let current: string[] = [];
-  let currentWords = 0;
-
-  for (const sentence of sentences) {
-    const sentenceWords = countWords(sentence);
-    if (current.length > 0 && currentWords + sentenceWords > MAX_BODY_WORDS_PER_PART) {
-      groups.push(current);
-      current = [];
-      currentWords = 0;
-    }
-    current.push(sentence);
-    currentWords += sentenceWords;
-  }
-
-  if (current.length > 0) groups.push(current);
-  if (groups.length === 0) groups.push([story.story.trim()]);
+  const normalizedStory = normalizeHorrorText(story.story);
+  const sentences = splitIntoSentences(normalizedStory);
+  const groups = groupSentences(sentences);
+  if (groups.length === 0) groups.push([normalizedStory]);
 
   return groups.map((group, index) => {
     const isFinal = index === groups.length - 1;
@@ -162,7 +258,7 @@ export function splitHorrorStoryIntoParts(story: HorrorStoryDraft, language: Lan
       text,
       cta,
       voiceoverText,
-      onScreenText: group,
+      onScreenText: buildHorrorCaptions(group),
       visualPrompt: story.visualMotifs[index % story.visualMotifs.length] || story.title,
       durationSec: Math.min(60, Math.max(8, Number((countWords(voiceoverText) / 2.2).toFixed(2))))
     };

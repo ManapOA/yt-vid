@@ -1,7 +1,6 @@
 import type { AutoDirectionId, Direction, LanguageOption } from './types';
 
 export const PROJECT_NAME = 'yt-vid';
-export const OUTPUT_ROOT = 'output/runs';
 
 export const LANGUAGES: LanguageOption[] = [
   { code: 'en', label: 'English' },
@@ -107,7 +106,7 @@ export const CTA_FALLBACK = {
   en: 'Save this if it felt a little too accurate.',
   ru: 'Сохрани это видео, если узнал себя.',
   kk: 'Егер өзіңді танысаң, бұл видеоны сақтап қой.',
-  de: 'Speicher das, wenn es sich zu genau angefuhlt hat.',
-  es: 'Guarda este video si te resulto demasiado preciso.',
-  it: 'Salva questo video se ti e sembrato fin troppo preciso.'
+  de: 'Speichere das, wenn es sich etwas zu treffend angefühlt hat.',
+  es: 'Guarda este video si te ha parecido demasiado preciso.',
+  it: 'Salva questo video se ti è sembrato fin troppo preciso.'
 };

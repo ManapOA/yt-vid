@@ -3,38 +3,50 @@ import {
   AbsoluteFill,
   Audio,
   Easing,
+  Img,
   interpolate,
   spring,
   useCurrentFrame,
   useVideoConfig
 } from 'remotion';
 import type { HorrorStoryPart } from '../shared/types';
+import { VideoFontFaces, type VideoFontProps, videoFontFamily } from './VideoFonts';
 
-function getSentenceTimings(lines: string[], durationInFrames: number) {
-  const contentEnd = Math.floor(durationInFrames * 0.84);
+function cleanDisplayText(value: string) {
+  return String(value || '')
+    .replace(/\\r\\n|\\n|\\r|\\t/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getSceneTimings(lines: string[], durationInFrames: number) {
   const weights = lines.map((line) => Math.max(5, line.split(/\s+/).filter(Boolean).length));
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || 1;
   let cursor = 0;
 
   return weights.map((weight, index) => {
-    const remainingFrames = contentEnd - cursor;
+    const remainingFrames = durationInFrames - cursor;
     const remainingScenes = weights.length - index;
-    const proportionalFrames = Math.round((contentEnd * weight) / totalWeight);
-    const duration = index === weights.length - 1
+    const proportionalFrames = Math.round((durationInFrames * weight) / totalWeight);
+    const duration = index === lines.length - 1
       ? remainingFrames
-      : Math.max(30, Math.min(proportionalFrames, remainingFrames - (remainingScenes - 1) * 30));
+      : Math.max(42, Math.min(proportionalFrames, remainingFrames - (remainingScenes - 1) * 42));
     const timing = { startFrame: cursor, duration };
     cursor += duration;
     return timing;
   });
 }
 
-function fitSentenceSize(text: string) {
+function fitTextSize(text: string) {
   const words = text.split(/\s+/).filter(Boolean).length;
-  if (words > 28 || text.length > 190) return 30;
-  if (words > 22 || text.length > 145) return 34;
-  if (words > 16 || text.length > 105) return 39;
-  return 46;
+  if (words > 18 || text.length > 125) return 58;
+  if (words > 12 || text.length > 88) return 68;
+  if (words > 8 || text.length > 62) return 78;
+  return 92;
+}
+
+function storyTitle(title: string) {
+  return title.replace(/\s+-\s+(?:Part|Часть|Бөлім|Teil|Parte)\s+\d+\/\d+$/i, '');
 }
 
 export function HorrorStoryVideo({
@@ -42,107 +54,124 @@ export function HorrorStoryVideo({
   audioFile,
   musicFile,
   musicVolume = 0.08,
-  visualization = true
+  visualization = true,
+  backgroundMedia,
+  backgroundMediaKind = 'image',
+  fontLatin,
+  fontLatinExt,
+  fontCyrillic,
+  fontCyrillicExt
 }: {
   part: HorrorStoryPart;
   audioFile: string | null;
   musicFile?: string | null;
   musicVolume?: number;
   visualization?: boolean;
-}) {
+  backgroundMedia?: string | null;
+  backgroundMediaKind?: 'image';
+} & VideoFontProps) {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
-  const timings = getSentenceTimings(part.onScreenText, durationInFrames);
-  const localizedPartLabel = /[\u0400-\u04ff]/.test(part.title) ? 'ЧАСТЬ' : 'PART';
-  const slowDrift = interpolate(frame, [0, durationInFrames], [-20, 24], {
+  const displayLines = part.onScreenText.map(cleanDisplayText).filter(Boolean).slice(0, 4);
+  const timings = getSceneTimings(displayLines, durationInFrames);
+  const footageScale = interpolate(frame, [0, durationInFrames], [1.08, 1.2], {
     easing: Easing.inOut(Easing.cubic)
   });
-  const ctaStart = Math.floor(durationInFrames * 0.84);
-  const ctaSpring = spring({ fps, frame: frame - ctaStart, config: { damping: 20, stiffness: 130 } });
+  const progress = interpolate(frame, [0, durationInFrames - 1], [0.03, 1], {
+    extrapolateRight: 'clamp'
+  });
 
   return (
     <AbsoluteFill
       style={{
         overflow: 'hidden',
-        background: visualization
-          ? 'linear-gradient(180deg, #030506 0%, #07100f 48%, #1a0d08 100%)'
-          : 'linear-gradient(180deg, #070809 0%, #141619 100%)',
-        color: '#f4eee4',
-        fontFamily: 'Georgia, Segoe UI, serif'
+        background: '#020303',
+        color: '#f7f2e9',
+        fontFamily: videoFontFamily
       }}
     >
+      <VideoFontFaces
+        fontLatin={fontLatin}
+        fontLatinExt={fontLatinExt}
+        fontCyrillic={fontCyrillic}
+        fontCyrillicExt={fontCyrillicExt}
+      />
       {audioFile ? <Audio src={audioFile} volume={1} /> : null}
       {musicFile ? <Audio src={musicFile} volume={musicVolume} /> : null}
 
-      {visualization ? (
-        <>
-          <AbsoluteFill
-            style={{
-              transform: `scale(1.08) translateY(${slowDrift}px)`,
-              background: 'radial-gradient(circle at 50% 82%, rgba(255,112,38,0.28), transparent 34%)'
-            }}
-          />
-          <Fog frame={frame} />
-          <ForestSilhouette />
-          <Campfire frame={frame} />
-          <Embers frame={frame} durationInFrames={durationInFrames} />
-        </>
-      ) : null}
+      {visualization && backgroundMedia ? (
+        <Img
+          src={backgroundMedia}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transform: `scale(${footageScale}) translateY(${interpolate(frame, [0, durationInFrames], [-0.6, 0.6])}%)`,
+            filter: 'grayscale(0.3) saturate(0.58) contrast(1.2) brightness(0.5)'
+          }}
+        />
+      ) : (
+        <AbsoluteFill style={{ background: 'linear-gradient(180deg, #06100f, #110806)' }} />
+      )}
 
-      <AbsoluteFill style={{ padding: '108px 72px 176px' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ color: '#e69b64', fontSize: 24, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase' }}>
-            {localizedPartLabel} {part.index}/{part.total}
-          </div>
-          <div
-            style={{
-              marginTop: 18,
-              fontSize: 54,
-              lineHeight: 1.04,
-              fontWeight: 800,
-              textShadow: '0 12px 36px rgba(0,0,0,0.86)'
-            }}
-          >
-            {part.title.replace(/\s+-\s+(?:Part|Часть|Бөлім|Teil|Parte)\s+\d+\/\d+$/i, '')}
-          </div>
+      <AbsoluteFill
+        style={{
+          background: [
+            'linear-gradient(180deg, rgba(0,0,0,0.64) 0%, rgba(0,0,0,0.12) 34%, rgba(0,0,0,0.18) 54%, rgba(0,0,0,0.9) 100%)',
+            'linear-gradient(90deg, rgba(0,0,0,0.56), transparent 72%)',
+            'radial-gradient(ellipse at 52% 108%, rgba(179,65,26,0.26), transparent 48%)'
+          ].join(',')
+        }}
+      />
+
+      <AbsoluteFill style={{ padding: '104px 164px 232px 68px' }}>
+        <div
+          style={{
+            maxWidth: 790,
+            color: 'rgba(247,242,233,0.84)',
+            fontSize: 31,
+            lineHeight: 0.96,
+            fontWeight: 700,
+            letterSpacing: -0.8,
+            textTransform: 'uppercase',
+            textShadow: '0 10px 34px rgba(0,0,0,0.94)'
+          }}
+        >
+          {storyTitle(part.title)}
         </div>
 
-        <div style={{ position: 'relative', flex: 1, marginTop: 60 }}>
-          {part.onScreenText.map((sentence, index) => (
-            <StorySentence
+        <div style={{ position: 'relative', flex: 1 }}>
+          {displayLines.map((line, index) => (
+            <HorrorPhrase
               duration={timings[index]?.duration || durationInFrames}
               fps={fps}
               frame={frame}
-              key={`${index}-${sentence}`}
+              key={`${line}-${index}`}
               startFrame={timings[index]?.startFrame || 0}
-              text={sentence}
+              text={line}
             />
           ))}
         </div>
 
         <div
           style={{
-            minHeight: 100,
-            display: 'grid',
-            placeItems: 'center',
-            opacity: interpolate(ctaSpring, [0, 1], [0, 1]),
-            transform: `translateY(${interpolate(ctaSpring, [0, 1], [18, 0])}px)`,
-            fontFamily: 'Segoe UI, Arial, sans-serif',
-            fontSize: 28,
-            lineHeight: 1.2,
-            fontWeight: 700,
-            textAlign: 'center',
-            textShadow: '0 8px 24px rgba(0,0,0,0.9)'
+            position: 'absolute',
+            left: 68,
+            right: 164,
+            bottom: 216,
+            height: 4,
+            background: 'rgba(255,255,255,0.2)',
+            overflow: 'hidden'
           }}
         >
-          {frame >= ctaStart ? part.cta : null}
+          <div style={{ width: `${progress * 100}%`, height: '100%', background: '#efa46e' }} />
         </div>
       </AbsoluteFill>
     </AbsoluteFill>
   );
 }
 
-function StorySentence({
+function HorrorPhrase({
   text,
   frame,
   fps,
@@ -156,127 +185,38 @@ function StorySentence({
   duration: number;
 }) {
   const localFrame = frame - startFrame;
-  if (localFrame < -15 || localFrame > duration) return null;
+  if (localFrame < 0 || localFrame >= duration) return null;
 
-  const enter = spring({ fps, frame: localFrame, config: { damping: 22, stiffness: 130 } });
-  const exit = interpolate(localFrame, [Math.max(12, duration - 16), duration], [0, 1], {
+  const enter = spring({ fps, frame: localFrame, config: { damping: 23, stiffness: 135 } });
+  const exit = interpolate(localFrame, [Math.max(18, duration - 14), duration], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp'
   });
+  const opacity = interpolate(exit, [0, 1], [interpolate(enter, [0, 1], [0.22, 1]), 0]);
 
   return (
     <AbsoluteFill
       style={{
-        display: 'grid',
-        placeItems: 'center',
-        opacity: interpolate(exit, [0, 1], [interpolate(enter, [0, 1], [0, 1]), 0]),
-        transform: `translateY(${interpolate(enter, [0, 1], [24, 0]) - exit * 12}px)`
+        justifyContent: 'flex-end',
+        paddingBottom: 190,
+        opacity,
+        transform: `translateY(${interpolate(enter, [0, 1], [28, 0]) - exit * 12}px)`
       }}
     >
       <div
         style={{
-          maxWidth: 900,
-          fontSize: fitSentenceSize(text),
-          lineHeight: 1.18,
-          fontWeight: 700,
-          textAlign: 'center',
+          maxWidth: 840,
+          fontSize: fitTextSize(text),
+          lineHeight: 0.91,
+          fontWeight: 500,
+          letterSpacing: -2.1,
+          textTransform: 'uppercase',
           textWrap: 'balance',
-          textShadow: '0 10px 34px rgba(0,0,0,0.94)'
+          textShadow: '0 14px 42px rgba(0,0,0,0.96)'
         }}
       >
         {text}
       </div>
     </AbsoluteFill>
-  );
-}
-
-function Fog({ frame }: { frame: number }) {
-  return (
-    <>
-      {[0, 1, 2].map((index) => (
-        <div
-          key={index}
-          style={{
-            position: 'absolute',
-            left: -240 + index * 300 + Math.sin((frame + index * 70) / 55) * 70,
-            top: 520 + index * 210,
-            width: 760,
-            height: 260,
-            borderRadius: '50%',
-            background: 'rgba(180,196,190,0.055)',
-            filter: 'blur(45px)'
-          }}
-        />
-      ))}
-    </>
-  );
-}
-
-function ForestSilhouette() {
-  return (
-    <div style={{ position: 'absolute', inset: '0 0 430px', opacity: 0.82 }}>
-      {Array.from({ length: 12 }, (_, index) => (
-        <div
-          key={index}
-          style={{
-            position: 'absolute',
-            left: `${index * 9 - 4}%`,
-            bottom: 0,
-            width: 0,
-            height: 0,
-            borderLeft: `${56 + (index % 3) * 10}px solid transparent`,
-            borderRight: `${56 + (index % 3) * 10}px solid transparent`,
-            borderBottom: `${430 + (index % 4) * 80}px solid #020504`
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function Campfire({ frame }: { frame: number }) {
-  const pulse = 1 + Math.sin(frame / 4) * 0.06;
-  return (
-    <div style={{ position: 'absolute', left: '50%', bottom: 110, transform: `translateX(-50%) scale(${pulse})` }}>
-      <div
-        style={{
-          width: 230,
-          height: 300,
-          borderRadius: '48% 52% 54% 46% / 68% 65% 35% 32%',
-          background: 'radial-gradient(circle at 50% 72%, #fff4af 0%, #ff9d28 30%, #d43c12 58%, transparent 70%)',
-          filter: 'blur(2px)',
-          transform: `rotate(${Math.sin(frame / 7) * 2}deg)`
-        }}
-      />
-      <div style={{ width: 300, height: 28, marginTop: -36, borderRadius: 999, background: '#24120c', transform: 'rotate(7deg)' }} />
-      <div style={{ width: 300, height: 28, marginTop: -28, borderRadius: 999, background: '#32160d', transform: 'rotate(-7deg)' }} />
-    </div>
-  );
-}
-
-function Embers({ frame, durationInFrames }: { frame: number; durationInFrames: number }) {
-  return (
-    <>
-      {Array.from({ length: 22 }, (_, index) => {
-        const cycle = (frame * (0.7 + (index % 5) * 0.12) + index * 83) % durationInFrames;
-        const rise = interpolate(cycle, [0, durationInFrames], [0, 960]);
-        return (
-          <div
-            key={index}
-            style={{
-              position: 'absolute',
-              left: `${42 + ((index * 17) % 18)}%`,
-              bottom: 300 + rise,
-              width: 4 + (index % 3) * 2,
-              height: 4 + (index % 3) * 2,
-              borderRadius: '50%',
-              background: index % 2 ? '#ffb34d' : '#f36a2d',
-              boxShadow: '0 0 12px rgba(255,122,48,0.9)',
-              opacity: interpolate(cycle, [0, durationInFrames * 0.75, durationInFrames], [0.9, 0.5, 0])
-            }}
-          />
-        );
-      })}
-    </>
   );
 }

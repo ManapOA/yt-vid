@@ -1,4 +1,6 @@
 import type { LanguageCode } from '../../shared/types';
+import { config } from '../config';
+import { fetchWithTimeout } from './request';
 
 function createSilentWav(seconds = 3, sampleRate = 44100) {
   const samples = seconds * sampleRate;
@@ -47,26 +49,31 @@ export async function synthesizeCartesiaVoice({
     return createSilentWav(Math.max(2, Math.ceil(transcript.split(/\s+/).length / 3)), sampleRate);
   }
 
-  const response = await fetch('https://api.cartesia.ai/tts/bytes', {
-    method: 'POST',
-    headers: {
-      'X-API-Key': apiKey,
-      'Cartesia-Version': version,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model_id: model,
-      transcript,
-      language,
-      voice: {
-        mode: 'id',
-        id: voiceId
+  let response: Response;
+  try {
+    response = await fetchWithTimeout('https://api.cartesia.ai/tts/bytes', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': apiKey,
+        'Cartesia-Version': version,
+        'Content-Type': 'application/json'
       },
-      output_format: outputContainer === 'mp3'
-        ? { container: 'mp3', sample_rate: sampleRate, bit_rate: bitRate }
-        : { container: 'wav', encoding: outputEncoding, sample_rate: sampleRate }
-    })
-  });
+      body: JSON.stringify({
+        model_id: model,
+        transcript,
+        language,
+        voice: {
+          mode: 'id',
+          id: voiceId
+        },
+        output_format: outputContainer === 'mp3'
+          ? { container: 'mp3', sample_rate: sampleRate, bit_rate: bitRate }
+          : { container: 'wav', encoding: outputEncoding, sample_rate: sampleRate }
+      })
+    }, config.ttsRequestTimeoutMs);
+  } catch {
+    return createSilentWav(Math.max(2, Math.ceil(transcript.split(/\s+/).length / 3)), sampleRate);
+  }
 
   if (!response.ok) {
     return createSilentWav(Math.max(2, Math.ceil(transcript.split(/\s+/).length / 3)), sampleRate);

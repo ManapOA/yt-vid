@@ -1,4 +1,4 @@
-import { topicGenerationSchema, scriptSchema } from '../../shared/schemas';
+import { topicGenerationSchema } from '../../shared/schemas';
 import { generateWithOpenAiCompatible } from './openai-compatible';
 
 export async function generateWithOpenRouter<T>({
@@ -37,6 +37,5 @@ export async function generateWithOpenRouter<T>({
 }
 
 export const openRouterSchemas = {
-  topics: topicGenerationSchema,
-  script: scriptSchema
+  topics: topicGenerationSchema
 };

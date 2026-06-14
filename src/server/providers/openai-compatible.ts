@@ -1,5 +1,7 @@
 import { parseStructuredJson } from './json';
 import { repairMojibakeDeep } from '../utils';
+import { config as appConfig } from '../config';
+import { fetchWithTimeout } from './request';
 
 export type OpenAiCompatibleConfig = {
   providerName: string;
@@ -27,7 +29,7 @@ export async function generateWithOpenAiCompatible<T>({
 
   let response: Response;
   try {
-    response = await fetch(`${config.baseUrl}/chat/completions`, {
+    response = await fetchWithTimeout(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
@@ -51,7 +53,7 @@ export async function generateWithOpenAiCompatible<T>({
           }
         ]
       })
-    });
+    }, appConfig.llmRequestTimeoutMs);
   } catch (error) {
     console.warn(`[${config.providerName}] request failed, using fallback: ${error instanceof Error ? error.message : String(error)}`);
     return repairMojibakeDeep(fallback);
@@ -62,17 +64,16 @@ export async function generateWithOpenAiCompatible<T>({
     return repairMojibakeDeep(fallback);
   }
 
-  const payload = await response.json();
-  const content = payload?.choices?.[0]?.message?.content;
-  if (!content) {
-    console.warn(`[${config.providerName}] empty response content, using fallback`);
-    return repairMojibakeDeep(fallback);
-  }
-
   try {
+    const payload = await response.json();
+    const content = payload?.choices?.[0]?.message?.content;
+    if (!content) {
+      console.warn(`[${config.providerName}] empty response content, using fallback`);
+      return repairMojibakeDeep(fallback);
+    }
     return repairMojibakeDeep(parseStructuredJson(content, schema));
   } catch (error) {
-    console.warn(`[${config.providerName}] invalid JSON, using fallback: ${error instanceof Error ? error.message : String(error)}`);
+    console.warn(`[${config.providerName}] invalid response, using fallback: ${error instanceof Error ? error.message : String(error)}`);
     return repairMojibakeDeep(fallback);
   }
 }
@@ -93,7 +94,7 @@ export async function generatePlainWithOpenAiCompatible({
   if (!config.apiKey) return fallback;
 
   try {
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
+    const response = await fetchWithTimeout(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
@@ -110,7 +111,7 @@ export async function generatePlainWithOpenAiCompatible({
           { role: 'user', content: prompt }
         ]
       })
-    });
+    }, appConfig.llmRequestTimeoutMs);
 
     if (!response.ok) {
       console.warn(`[${config.providerName}] ${response.status} ${response.statusText}, using fallback: ${(await response.text()).slice(0, 240)}`);

@@ -37,15 +37,17 @@ npm run dev
 
 ## Models
 
-Runtime content generation defaults to Cerebras Inference. Cerebras is used for topic discovery, short-form material, YouTube metadata, and any legacy script generation path. Voiceover still uses Cartesia, and final video rendering still uses Remotion.
+Runtime content generation defaults to Cerebras Inference. Cerebras is used for topic discovery, short-form material, and YouTube metadata. Voiceover uses Cartesia, and final video rendering uses Remotion.
 
 ```env
+HOST=127.0.0.1
 LLM_PROVIDER=cerebras
 CONTENT_MODEL=gpt-oss-120b
 CEREBRAS_API_KEY=
 CEREBRAS_MODEL=gpt-oss-120b
 CEREBRAS_BASE_URL=https://api.cerebras.ai/v1
-CODE_MODEL=qwen/qwen3-coder
+LLM_REQUEST_TIMEOUT_MS=45000
+TTS_REQUEST_TIMEOUT_MS=60000
 VIDEO_EXPORT_DIR=Video/Youtube
 ```
 
@@ -54,7 +56,7 @@ Recommended Cerebras models:
 - `gpt-oss-120b`: default production model for smarter, stable video topics and scripts.
 - `zai-glm-4.7`: optional preview model for experiments; not recommended as the default production setting.
 
-`CODE_MODEL` is reserved for future code-agent tasks and is not used by the video runtime pipeline. `OPENROUTER_MODEL` remains supported as a backward-compatible fallback, but new configuration should prefer Cerebras through `CONTENT_MODEL`.
+`OPENROUTER_MODEL` remains supported as a fallback, but new configuration should prefer Cerebras through `CONTENT_MODEL`.
 
 ## API
 
@@ -66,7 +68,6 @@ Recommended Cerebras models:
 - `POST /api/voiceover/create`
 - `GET /api/hermes/memory`
 - `POST /api/hermes/fix-note`
-- `POST /api/hermes/check-run`
 
 Deprecated manual endpoints return `410`:
 

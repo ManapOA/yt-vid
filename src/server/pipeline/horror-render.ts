@@ -5,9 +5,19 @@ import { renderMedia, selectComposition } from '@remotion/renderer';
 import type { HorrorStoryPart } from '../../shared/types';
 import { config } from '../config';
 import { getWavDurationSec } from './audio-duration';
+import { selectHorrorBackground } from './media-library';
+import { loadVideoFonts } from './video-fonts';
 
 function getMimeType(filePath: string) {
-  return path.extname(filePath).toLowerCase() === '.mp3' ? 'audio/mpeg' : 'audio/wav';
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.mp4') return 'video/mp4';
+  if (ext === '.png') return 'image/png';
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.webp') return 'image/webp';
+  if (ext === '.woff2') return 'font/woff2';
+  if (ext === '.woff') return 'font/woff';
+  if (ext === '.ttf') return 'font/ttf';
+  return ext === '.mp3' ? 'audio/mpeg' : 'audio/wav';
 }
 
 async function fileToDataUrl(filePath: string | null) {
@@ -33,6 +43,9 @@ export async function renderHorrorSeries({
     entryPoint: path.join(config.root, 'src', 'remotion', 'index.ts')
   });
   const stagedMusicFile = await fileToDataUrl(musicFile);
+  const videoFonts = await loadVideoFonts(async (filePath) => (
+    (await fileToDataUrl(filePath))!
+  ));
   const outputs: Array<{ part: HorrorStoryPart; outputVideoPath: string }> = [];
 
   for (const entry of parts) {
@@ -48,12 +61,19 @@ export async function renderHorrorSeries({
         ? Math.max(5, Number(voiceDuration.toFixed(2)))
         : Math.min(60, entry.part.durationSec)
     };
+    const selectedBackground = selectHorrorBackground(partForRender);
+    const backgroundMedia = visualization
+      ? await fileToDataUrl(selectedBackground.path)
+      : null;
     const inputProps = {
       part: partForRender,
       audioFile: stagedVoiceFile,
       musicFile: stagedMusicFile,
       musicVolume: Math.min(config.musicVolume, 0.08),
-      visualization
+      visualization,
+      backgroundMedia,
+      backgroundMediaKind: 'image' as const,
+      ...videoFonts
     };
     const composition = await selectComposition({
       serveUrl: site,

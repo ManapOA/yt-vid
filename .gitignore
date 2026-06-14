@@ -2,7 +2,7 @@ node_modules/
 .tools/
 dist/
 .env
-output/runs/
+output/
 *.log
 vendor/
 coverage/

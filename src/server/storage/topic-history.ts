@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { config } from '../config';
-import { readJsonFile, writeJsonFile } from '../utils';
+import { readJsonFile, updateJsonFile } from '../utils';
 
 const topicHistoryPath = path.join(config.dataDir, 'topic-history.json');
 
@@ -40,11 +40,12 @@ export async function filterDuplicateTopics(directionId: string, topics: string[
 }
 
 export async function appendTopicHistory(directionId: string, topic: string) {
-  const history = await getTopicHistory();
-  history.unshift({
-    directionId,
-    topic,
-    createdAt: new Date().toISOString()
-  });
-  await writeJsonFile(topicHistoryPath, history.slice(0, 500));
+  await updateJsonFile<TopicHistoryEntry[]>(topicHistoryPath, [], (history) => [
+    {
+      directionId,
+      topic,
+      createdAt: new Date().toISOString()
+    },
+    ...history
+  ].slice(0, 500));
 }
