@@ -51,15 +51,12 @@ export async function renderHorrorSeries({
   for (const entry of parts) {
     const stagedVoiceFile = await fileToDataUrl(entry.voiceFile);
     const voiceDuration = await getWavDurationSec(entry.voiceFile);
-    if (voiceDuration && voiceDuration > 60) {
-      throw new Error(`Horror story part ${entry.part.index} exceeds 60 seconds after voice synthesis.`);
-    }
 
     const partForRender = {
       ...entry.part,
       durationSec: voiceDuration
         ? Math.max(5, Number(voiceDuration.toFixed(2)))
-        : Math.min(60, entry.part.durationSec)
+        : Math.max(5, entry.part.durationSec)
     };
     const selectedBackground = selectHorrorBackground(partForRender);
     const backgroundMedia = visualization

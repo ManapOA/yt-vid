@@ -3,7 +3,7 @@ import path from 'node:path';
 import { config } from '../config';
 import { synthesizeCartesiaVoice } from '../providers/cartesia';
 import type { MultiScriptPackage, VoiceArtifact } from '../../shared/types';
-import { formatVoiceoverForSpeech } from './speech';
+import { formatVoiceoverForDisplay, formatVoiceoverForSpeech } from './speech';
 import { getWavDurationSecFromBuffer, isWavBuffer } from './audio-duration';
 
 export async function createVoiceovers(runDir: string, bundle: MultiScriptPackage) {
@@ -11,6 +11,7 @@ export async function createVoiceovers(runDir: string, bundle: MultiScriptPackag
 
   for (const script of bundle.languages) {
     const transcript = formatVoiceoverForSpeech(script.voiceoverText);
+    const displayTranscript = formatVoiceoverForDisplay(script.voiceoverText);
     const bytes = await synthesizeCartesiaVoice({
       apiKey: config.cartesia.apiKey,
       model: config.cartesia.model,
@@ -34,7 +35,7 @@ export async function createVoiceovers(runDir: string, bundle: MultiScriptPackag
     if (durationSec) {
       script.durationSeconds = Math.max(3, Number(durationSec.toFixed(2)));
     }
-    script.voiceoverText = transcript;
+    script.voiceoverText = displayTranscript;
     artifacts.push({
       language: script.language,
       fileName,

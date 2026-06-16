@@ -62,7 +62,7 @@ export const RemotionRoot: React.FC = () => {
       fps={30}
       durationInFrames={1500}
       calculateMetadata={({ props }) => ({
-        durationInFrames: Math.ceil(Math.min(60, Math.max(5, Number(props.part?.durationSec || 45))) * 30)
+        durationInFrames: Math.ceil(Math.max(5, Number(props.part?.durationSec || 45)) * 30)
       })}
       defaultProps={{
         part: {

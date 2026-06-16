@@ -13,13 +13,13 @@ vi.mock('../src/server/providers/llm', () => ({
 
 const generateStructuredMock = vi.mocked(generateStructuredWithLlm);
 
-describe('horror story series', () => {
+describe('horror story video', () => {
   beforeEach(() => {
     generateStructuredMock.mockClear();
     generateStructuredMock.mockImplementation(async ({ fallback }) => fallback);
   });
 
-  it('splits only between complete sentences and adds continuation CTAs', () => {
+  it('keeps the horror story in one complete video without continuation CTAs', () => {
     const sentence = (index: number) => `Sentence ${index} contains enough words to build suspense without being cut in the middle of the screen.`;
     const story = {
       title: 'The Last Fire',
@@ -31,13 +31,13 @@ describe('horror story series', () => {
 
     const parts = splitHorrorStoryIntoParts(story, 'en');
 
-    expect(parts.length).toBeGreaterThan(1);
-    expect(parts.length).toBeLessThanOrEqual(4);
-    expect(parts.every((part) => part.durationSec <= 60)).toBe(true);
+    expect(parts).toHaveLength(1);
+    expect(parts[0].total).toBe(1);
+    expect(parts[0].title).toBe(story.title);
     expect(parts.every((part) => part.onScreenText.length <= 4)).toBe(true);
     expect(parts.every((part) => part.onScreenText.every((line) => line.split(/\s+/).length <= 10))).toBe(true);
-    expect(parts[0].cta).toContain('next part');
-    expect(parts.at(-1)?.cta).toContain('Subscribe');
+    expect(parts[0].cta).toContain('Subscribe');
+    expect(parts[0].cta).not.toContain('next part');
   });
   it('removes escaped paragraph markers returned by the model', () => {
     const story = {
@@ -81,6 +81,6 @@ describe('horror story series', () => {
     expect(generateStructuredMock).toHaveBeenCalledTimes(2);
     expect(words).toBeGreaterThanOrEqual(120);
     expect(words).toBeLessThanOrEqual(300);
-    expect(splitHorrorStoryIntoParts(story, 'en').length).toBeLessThanOrEqual(4);
+    expect(splitHorrorStoryIntoParts(story, 'en')).toHaveLength(1);
   });
 });

@@ -8,8 +8,6 @@ import type {
 } from '../../shared/types';
 import { generateStructuredWithLlm } from '../providers/llm';
 
-const TARGET_BODY_WORDS_PER_PART = 70;
-const MAX_SERIES_PARTS = 4;
 const MIN_STORY_WORDS = 120;
 const MAX_STORY_WORDS = 300;
 
@@ -58,39 +56,6 @@ const partLabelByLanguage: Record<LanguageCode, string> = {
 
 function countWords(value: string) {
   return String(value || '').trim().split(/\s+/).filter(Boolean).length;
-}
-
-function desiredPartCount(totalWords: number) {
-  if (totalWords <= 85) return 1;
-  return Math.min(MAX_SERIES_PARTS, Math.max(2, Math.round(totalWords / TARGET_BODY_WORDS_PER_PART)));
-}
-
-function groupSentences(sentences: string[]) {
-  const totalWords = sentences.reduce((sum, sentence) => sum + countWords(sentence), 0);
-  const targetParts = desiredPartCount(totalWords);
-  const groups: string[][] = [];
-  let current: string[] = [];
-  let currentWords = 0;
-  let remainingWords = totalWords;
-
-  for (const sentence of sentences) {
-    const sentenceWords = countWords(sentence);
-    const remainingGroups = targetParts - groups.length;
-    const targetWords = Math.ceil(remainingWords / Math.max(1, remainingGroups));
-
-    if (current.length > 0 && groups.length < targetParts - 1 && currentWords + sentenceWords > targetWords) {
-      groups.push(current);
-      remainingWords -= currentWords;
-      current = [];
-      currentWords = 0;
-    }
-
-    current.push(sentence);
-    currentWords += sentenceWords;
-  }
-
-  if (current.length > 0) groups.push(current);
-  return groups;
 }
 
 function captionBeat(sentence: string) {
@@ -218,8 +183,8 @@ export async function generateHorrorStory(request: HorrorStoryRequest) {
     `Write an original horror story in language code ${request.language}.`,
     `Style: ${styleDescriptions[request.style]}.`,
     'The story must sound natural when told aloud during an evening gathering around a fire.',
-    'Write one complete, coherent story designed for 2-4 short videos.',
-    'Use 180-280 words total.',
+    'Write one complete, coherent story designed for one vertical video.',
+    `Use ${MIN_STORY_WORDS}-${MAX_STORY_WORDS} words total.`,
     'The first sentence must contain the anomaly, warning, impossible detail, or immediate threat.',
     'Never begin with weather, friends gathering, or general atmosphere.',
     'Use escalating tension, concrete sensory details, and a memorable visual ending.',
@@ -242,25 +207,20 @@ export async function generateHorrorStory(request: HorrorStoryRequest) {
 export function splitHorrorStoryIntoParts(story: HorrorStoryDraft, language: LanguageCode): HorrorStoryPart[] {
   const normalizedStory = normalizeHorrorText(story.story);
   const sentences = splitIntoSentences(normalizedStory);
-  const groups = groupSentences(sentences);
-  if (groups.length === 0) groups.push([normalizedStory]);
+  const group = sentences.length > 0 ? sentences : [normalizedStory];
+  const cta = ctaByLanguage[language].final;
+  const text = group.join(' ');
+  const voiceoverText = `${text} ${cta}`.trim();
 
-  return groups.map((group, index) => {
-    const isFinal = index === groups.length - 1;
-    const cta = isFinal ? ctaByLanguage[language].final : ctaByLanguage[language].next;
-    const text = group.join(' ');
-    const voiceoverText = `${text} ${cta}`.trim();
-
-    return {
-      index: index + 1,
-      total: groups.length,
-      title: `${story.title} - ${partLabelByLanguage[language]} ${index + 1}/${groups.length}`,
-      text,
-      cta,
-      voiceoverText,
-      onScreenText: buildHorrorCaptions(group),
-      visualPrompt: story.visualMotifs[index % story.visualMotifs.length] || story.title,
-      durationSec: Math.min(60, Math.max(8, Number((countWords(voiceoverText) / 2.2).toFixed(2))))
-    };
-  });
+  return [{
+    index: 1,
+    total: 1,
+    title: story.title,
+    text,
+    cta,
+    voiceoverText,
+    onScreenText: buildHorrorCaptions(group),
+    visualPrompt: story.visualMotifs[0] || story.title,
+    durationSec: Math.max(8, Number((countWords(voiceoverText) / 2.2).toFixed(2)))
+  }];
 }
